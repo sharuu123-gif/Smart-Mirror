@@ -1057,6 +1057,37 @@ def api_agent_chat():
     user_turn_text = f"Language: {lang_name} ({active_language})\nUser Spoken: {message}"
     contents.append({"role": "user", "parts": [{"text": user_turn_text}]})
 
+    # 1. Primary Agent: n8n Workflow (if active and running)
+    try:
+        n8n_payload = {
+            "text": message,
+            "query": message,
+            "message": message,
+            "active_language": active_language,
+            "persona": persona,
+            "messages": history + [{"role": "user", "content": message}]
+        }
+        n8n_req = urllib.request.Request(
+            N8N_WEBHOOK_URL,
+            headers={'Content-Type': 'application/json'},
+            data=json.dumps(n8n_payload).encode('utf-8')
+        )
+        with urllib.request.urlopen(n8n_req, timeout=6) as n8n_res:
+            if n8n_res.status == 200:
+                n8n_data = json.loads(n8n_res.read().decode('utf-8'))
+                if n8n_data.get('answer'):
+                    return jsonify({
+                        "status": "success",
+                        "intent": n8n_data.get("intent", "GENERAL_CHAT"),
+                        "answer": n8n_data.get("answer", ""),
+                        "song_query": n8n_data.get("song_query"),
+                        "subject": n8n_data.get("subject"),
+                        "learned_preference": n8n_data.get("learned_preference"),
+                        "language": n8n_data.get("active_language", active_language)
+                    })
+    except Exception as e:
+        print(f"n8n webhook query error, trying fallback: {e}")
+
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,

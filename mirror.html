@@ -3373,9 +3373,114 @@ CRITICAL HARDWARE CONTROLS:
     pushConversationTurn('user', question);
 
     try {
-      // 1. Primary: Flask Backend with Gemini 2.5 Flash
+      let handled = false;
+
+      // 0. Primary Agent: n8n Workflow (Direct Webhook)
+      if (N8N_URL) {
+        try {
+          const n8nController = new AbortController();
+          const n8nTid = setTimeout(() => n8nController.abort(), 9000);
+          const n8nPayload = {
+            text: question,
+            query: question,
+            message: question,
+            active_language: activeLanguage,
+            persona: currentPersona,
+            messages: conversationHistory.map(m => ({
+              role: m.role === 'user' ? 'user' : 'assistant',
+              content: m.content
+            })).concat([{ role: 'user', content: question }])
+          };
+
+          const n8nRes = await fetch(N8N_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(n8nPayload),
+            signal: n8nController.signal
+          });
+          clearTimeout(n8nTid);
+
+          if (n8nRes.ok) {
+            const data = await n8nRes.json();
+            showLoading(false);
+
+            if (myQueryId !== currentQueryId || conversationState === 'INTERRUPTED') {
+              return;
+            }
+
+            if (data.intent === 'LANGUAGE_SWITCH' && (data.active_language || data.language)) {
+              setLanguage(data.active_language || data.language, true);
+              if (data.answer) {
+                pushConversationTurn('assistant', data.answer);
+                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
+              return;
+            }
+
+            if (data.intent === 'MUSIC_PLAY') {
+              const songToPlay = data.song_query || question;
+              if (data.answer) {
+                pushConversationTurn('assistant', data.answer);
+                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
+              if (isNextOrDifferentSongIntent(songToPlay)) {
+                playNextOrDifferentSong();
+              } else {
+                playRequestedSong(songToPlay);
+              }
+              return;
+            }
+
+            if (data.intent === 'IMAGE_OUTFIT' || data.intent === 'IMAGE_OUTFIT_REQUEST') {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
+              captureAndAnalyzeOutfit();
+              return;
+            }
+
+            if (data.intent === 'OBJECT_IDENTIFY' || data.intent === 'OBJECT_IDENTIFY_REQUEST') {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
+              captureAndIdentifyObject(question);
+              return;
+            }
+
+            if (data.intent === 'IMAGE_GENERATE' && (data.subject || question)) {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
+              handleMultimodalStudioRequest(data.subject || question);
+              return;
+            }
+
+            if (data.answer) {
+              handled = true;
+              pushConversationTurn('assistant', data.answer);
+              setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+              setAIResponse(data.answer);
+              speakResponse(data.answer);
+              return;
+            }
+          }
+        } catch (nErr) {
+          console.warn("n8n direct query failed or timed out, falling back:", nErr);
+        }
+      }
+
+      // 1. Secondary: Flask Backend with Gemini / n8n forward
       const chatPayload = {
         message: question,
+        text: question,
+        query: question,
         active_language: activeLanguage,
         persona: currentPersona,
         history: conversationHistory.map(m => ({
@@ -3385,8 +3490,7 @@ CRITICAL HARDWARE CONTROLS:
         memory: typeof userProfile !== 'undefined' ? userProfile : {}
       };
 
-      let handled = false;
-      if (FLASK_BASE) {
+      if (!handled && FLASK_BASE) {
         try {
           const res = await fetch(`${FLASK_BASE}/api/agent/chat`, {
             method: 'POST',
@@ -3404,10 +3508,22 @@ CRITICAL HARDWARE CONTROLS:
 
             if (data.intent === 'LANGUAGE_SWITCH' && (data.active_language || data.language)) {
               setLanguage(data.active_language || data.language, true);
+              if (data.answer) {
+                pushConversationTurn('assistant', data.answer);
+                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
               return;
             }
             if (data.intent === 'MUSIC_PLAY') {
               const songToPlay = data.song_query || question;
+              if (data.answer) {
+                pushConversationTurn('assistant', data.answer);
+                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
               if (isNextOrDifferentSongIntent(songToPlay)) {
                 playNextOrDifferentSong();
               } else {
@@ -3415,15 +3531,27 @@ CRITICAL HARDWARE CONTROLS:
               }
               return;
             }
-            if (data.intent === 'IMAGE_OUTFIT') {
+            if (data.intent === 'IMAGE_OUTFIT' || data.intent === 'IMAGE_OUTFIT_REQUEST') {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
               captureAndAnalyzeOutfit();
               return;
             }
-            if (data.intent === 'OBJECT_IDENTIFY') {
+            if (data.intent === 'OBJECT_IDENTIFY' || data.intent === 'OBJECT_IDENTIFY_REQUEST') {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
               captureAndIdentifyObject(question);
               return;
             }
             if (data.intent === 'IMAGE_GENERATE' && (data.subject || question)) {
+              if (data.answer) {
+                setAIResponse(data.answer);
+                speakResponse(data.answer);
+              }
               handleMultimodalStudioRequest(data.subject || question);
               return;
             }
