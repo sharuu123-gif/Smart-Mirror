@@ -2,19 +2,24 @@
 .env
 .env.*
 !.env.example
+!.env.template
 
 # Dependencies and Python runtime
 node_modules/
 venv/
 .venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 
 # Build and runtime output
 build/
 dist/
+coverage/
 logs/
 *.log
+.DS_Store
+Thumbs.db
 
 # Generated or private test images
 static/generated/
