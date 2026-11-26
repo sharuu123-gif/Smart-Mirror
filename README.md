@@ -1,77 +1,212 @@
-# 🪞 SmartMirror-Vox
+# SmartMirror-Vox
 ### Voice-Augmented Magic Mirror for Smart Environments
 
-**SmartMirror-Vox** is an AI-powered smart mirror that transforms a traditional mirror into an intelligent, interactive personal assistant using Artificial Intelligence, Computer Vision, Voice Recognition, and IoT technologies.
+An intelligent, multimodal smart mirror integrating Artificial Intelligence, Computer Vision, Generative AI, and multilingual voice interaction to create a context-aware personal assistant.
 
-The system combines a web-based smart mirror interface, Python Flask backend, and n8n workflow automation to provide multilingual voice conversations, outfit analysis, object identification, virtual hairstyle previews, and multimedia entertainment.
+---
 
-## 🚀 Project Overview
+## 1. Project Overview
 
-Traditional smart mirrors mainly display static information such as time, date, and weather. SmartMirror-Vox extends this functionality by introducing voice-based interaction and AI-powered visual intelligence.
+SmartMirror-Vox is an AI-powered smart mirror designed to transform a conventional reflective surface into an intelligent, interactive system.
 
-Users can interact with the mirror through voice commands, receive personalized responses, analyze their outfits, identify objects, and generate virtual hairstyle previews.
+Unlike traditional smart mirrors that primarily display static information, SmartMirror-Vox enables users to communicate naturally through voice commands, interact with AI-powered services, analyze their appearance, identify objects, and generate virtual hairstyle previews.
 
-## ✨ Key Features
+The system combines a web-based interface, Python Flask backend, n8n workflow orchestration, and external AI services to provide a unified multimodal experience.
 
-- **AI Voice Assistant:** Hands-free interaction using voice commands.
-- **Multilingual Support:** Supports English, Kannada, Telugu, Hindi, Tamil, Malayalam, Marathi, and Bengali.
-- **Dual AI Personas:** Choose between Jarvis and Lisa conversational personalities.
-- **AI Outfit Analysis:** Analyze clothing combinations, colors, and styling.
-- **Object Identification:** Identify objects using camera input and AI vision.
-- **Virtual Hairstyle Try-On:** Generate hairstyle previews using generative AI.
-- **Smart Dashboard:** Displays time, date, weather, and news.
-- **Voice-Activated Music:** Request and play music using voice commands.
-- **Workflow Automation:** Uses n8n to classify requests and route them to appropriate AI services.
+**Core capabilities:**
+- Multilingual voice-based conversations.
+- AI-powered outfit and appearance analysis.
+- Real-time object identification through camera input.
+- Generative AI-based virtual hairstyle previews.
+- Voice-activated music and multimedia interaction.
+- Dynamic conversational personalities.
 
-## 🛠️ Technology Stack
+## 2. System Demonstration
 
-| Category | Technologies |
+### Live Smart Mirror Interface
+
+![SmartMirror-Vox Live Interface](assets/smartmirror-live-demo.jpg)
+
+*The deployed interface demonstrating the smart mirror dashboard, camera interaction, voice assistant controls, weather information, and user interface.*
+
+### System Architecture and Workflow
+
+![SmartMirror-Vox Architecture](assets/smartmirror-architecture.jpg)
+
+*The system architecture and n8n automation pipeline showing intent classification, request routing, AI processing, and response delivery.*
+
+## 3. Key Features
+
+| Feature | Implementation |
 |---|---|
-| Programming Language | Python |
-| Frontend | HTML5, CSS3, JavaScript |
-| Backend | Flask |
-| API Communication | REST APIs, Flask-CORS, Requests |
-| Workflow Automation | n8n |
-| Conversational AI | Groq, Google Gemini |
-| Computer Vision | Qwen-VL / Gemini Vision |
-| Image Generation | FLUX.1 / Pollinations |
-| Image Processing | Pillow |
-| Voice Interaction | Speech-to-Text (STT), Text-to-Speech (TTS) |
-| Hardware | Monitor, Two-Way Mirror, Webcam, Microphone, Speakers |
+| Voice Interaction | Browser-based speech recognition and voice responses |
+| Multilingual Communication | English, Kannada, Telugu, Hindi, Tamil, Malayalam, Marathi, Bengali |
+| Conversational AI | Groq and Google Gemini |
+| Assistant Personalities | Jarvis and Lisa |
+| Outfit Analysis | Vision-language model-based appearance feedback |
+| Object Identification | Camera-based visual understanding |
+| Virtual Hairstyle Generation | FLUX.1 / Pollinations image-generation pipeline |
+| Music Interaction | Voice-based music request processing |
+| Smart Dashboard | Clock, date, weather and news information |
+| Workflow Orchestration | n8n webhook and intent-based routing |
 
-## 🏗️ System Architecture
+## 4. Technology Stack
 
-The system consists of three major layers:
+**Frontend**
+- HTML5
+- CSS3
+- JavaScript
+- Web Speech Recognition API
+- MediaDevices API
+- Web Audio API
 
-**1. Frontend Layer**
-- Developed using HTML, CSS, and JavaScript.
-- Displays the smart mirror dashboard.
-- Handles microphone and camera interaction.
-- Displays AI-generated responses and visual results.
+**Backend**
+- Python
+- Flask
+- Flask-CORS
+- Requests
+- Pillow
 
-**2. Backend Layer**
-- Developed using Python Flask.
-- Manages user sessions and language preferences.
-- Handles API communication and audio streaming.
-- Connects the frontend with the automation workflow.
+**Artificial Intelligence**
+- Groq
+- Google Gemini
+- Qwen-VL
+- Vision-Language Models
+- FLUX.1
+- Pollinations
 
-**3. AI and Automation Layer**
-- Uses n8n for workflow orchestration.
-- Uses Groq and Gemini for conversational AI.
-- Uses vision models for outfit and object analysis.
-- Uses generative AI for hairstyle previews.
+**Automation and Integration**
+- n8n
+- Webhooks
+- REST APIs
+- JSON-based workflow processing
 
-## 🔄 Working Methodology
+**Deployment and Version Control**
+- Netlify
+- Git
+- GitHub
 
-1. The user gives a voice command through the mirror.
-2. Speech recognition converts the voice into text.
-3. The request is forwarded to the n8n webhook.
-4. The workflow identifies the user's intent.
-5. The request is routed to the appropriate AI service.
-6. The result is returned to the Flask backend.
-7. The mirror displays the response and provides voice output.
+## 5. System Architecture
 
-## 📂 Project Structure
+The application follows a modular, event-driven architecture consisting of four logical components.
+
+### 5.1 Presentation Layer
+
+The frontend provides the primary interaction interface.
+
+Responsibilities:
+- Displaying the smart mirror dashboard.
+- Showing time, date, weather, and news.
+- Capturing voice commands.
+- Accessing camera input.
+- Displaying AI-generated responses and images.
+- Playing audio responses and music.
+
+### 5.2 Backend Layer – Python Flask
+
+The Flask application acts as the backend controller.
+
+Responsibilities:
+- Managing conversational sessions.
+- Maintaining active language and assistant preferences.
+- Handling frontend and external API communication.
+- Supporting audio streaming and music-related operations.
+- Coordinating requests between application components.
+
+### 5.3 Workflow Orchestration Layer – n8n
+
+The n8n workflow coordinates the processing of user requests.
+
+The workflow consists of:
+
+1. **Webhook:** Receives the incoming request.
+2. **Normalize and Classify:** Processes user text and identifies the requested operation.
+3. **Intent Switch Router:** Selects the appropriate execution path.
+4. **Processing Branches:** Handles language changes, general questions, outfit analysis, image generation, and music requests.
+5. **Response Processing:** Prepares the result.
+6. **Respond to Webhook:** Returns the structured response to the application.
+
+### 5.4 AI and External Services Layer
+
+External AI services provide the intelligence required by the application.
+
+- Groq and Google Gemini – Conversational responses.
+- Qwen-VL / Gemini Vision – Visual understanding and analysis.
+- FLUX.1 / Pollinations – Generative image processing.
+- Speech-to-Text and Text-to-Speech services – Voice interaction.
+- External APIs – Weather, news, and multimedia services.
+
+## 6. Request Processing Workflow
+
+```text
+             USER
+               |
+               v
+       VOICE COMMAND INPUT
+               |
+               v
+        SPEECH RECOGNITION
+               |
+               v
+       SMART MIRROR FRONTEND
+               |
+               v
+        PYTHON FLASK SERVER
+               |
+               v
+          n8n WEBHOOK
+               |
+               v
+       NORMALIZE USER INPUT
+               |
+               v
+       INTENT CLASSIFICATION
+               |
+               v
+        INTENT SWITCH ROUTER
+               |
+       +-------+-------+--------+
+       |       |       |        |
+       v       v       v        v
+     GENERAL  OUTFIT  IMAGE    MUSIC
+      QUERY   ANALYSIS GENERATION REQUEST
+       |       |       |        |
+       +-------+-------+--------+
+               |
+               v
+       RESPONSE PROCESSING
+               |
+               v
+       RESPOND TO WEBHOOK
+               |
+               v
+       SMART MIRROR DISPLAY
+               |
+         +-----+-----+
+         |           |
+         v           v
+      TEXT       VOICE OUTPUT
+      RESPONSE
+```
+
+## 7. Supported Voice Interaction
+
+The system supports eight languages:
+
+| Language | Support |
+|---|---|
+| English | Yes |
+| Kannada | Yes |
+| Telugu | Yes |
+| Hindi | Yes |
+| Tamil | Yes |
+| Malayalam | Yes |
+| Marathi | Yes |
+| Bengali | Yes |
+
+Users can interact with the assistant using the Jarvis or Lisa conversational personality.
+
+## 8. Project Structure
 
 ```text
 Smart-Mirror/
@@ -81,35 +216,41 @@ Smart-Mirror/
 │
 ├── services/
 │
+├── assets/
+│   ├── smartmirror-live-demo.jpg
+│   └── smartmirror-architecture.jpg
+│
 ├── app.py
 ├── index.html
 ├── mirror.html
+│
 ├── requirements.txt
 ├── workflow_smartmirror_vox.json
 │
 ├── netlify.toml
 ├── _headers
 ├── _redirects
+├── .gitignore
 ├── start_mirror.bat
 │
 └── README.md
 ```
 
-## ⚙️ Installation and Setup
+## 9. Installation and Execution
 
 ### Prerequisites
 
-- Python 3.9 or above
-- pip package manager
-- Git
-- Web browser
-- n8n account or running n8n instance
-- Required API credentials for external AI services
+- Python 3.9 or later.
+- Git.
+- pip package manager.
+- Modern web browser.
+- n8n instance.
+- Required external AI service credentials.
 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
+git clone <YOUR_REPOSITORY_URL>
 ```
 
 ### Step 2: Navigate to the Project
@@ -138,65 +279,18 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Step 6: Configure External Services
+### Step 6: Configure the Automation Workflow
 
-Configure the required API credentials and n8n webhook URL according to the application's configuration.
+1. Start or access your n8n instance.
+2. Import `workflow_smartmirror_vox.json`.
+3. Configure the required AI service credentials.
+4. Configure the webhook endpoint.
+5. Ensure that the Flask backend and frontend use the correct endpoint.
 
-Do not upload API keys or passwords to GitHub.
-
-### Step 7: Run the Application
+### Step 7: Start the Flask Application
 
 ```bash
 python app.py
 ```
 
-Open the local application URL configured by Flask in your browser.
-
-## 📸 Project Screenshots
-
-The following screenshots demonstrate the SmartMirror-Vox interface and its AI capabilities.
-
-Add your actual project screenshots here.
-
-```markdown
-![Smart Mirror Dashboard](screenshots/dashboard.png)
-
-![AI Vision Analysis](screenshots/vision-analysis.png)
-
-![AI Hairstyle Generation](screenshots/hairstyle-preview.png)
-
-![n8n Workflow](screenshots/n8n-workflow.png)
-```
-
-## 🎯 Project Objectives
-
-- Develop an interactive AI-powered smart mirror.
-- Enable multilingual voice-based communication.
-- Integrate computer vision for outfit and object analysis.
-- Implement generative AI for virtual hairstyle previews.
-- Automate user requests using n8n workflows.
-- Create a modular architecture for future smart environment integration.
-
-## 🔮 Future Enhancements
-
-- Advanced IoT home automation integration.
-- Personalized user profiles and preferences.
-- Improved AI vision capabilities.
-- Additional regional language support.
-- Enhanced real-time interaction and response optimization.
-- Integration with additional smart home devices.
-
-## 👨‍💻 Project Team
-
-**Department:** Computer Science and Engineering (Artificial Intelligence and Machine Learning)
-
-**Institution:** Nagarjuna College of Engineering and Technology, Bengaluru
-
-**Project Guide:** Dr. Niranjan
-
-| Team Member | USN |
-|---|---|
-| H. Sharath | 1NC23CI022 |
-| K. Rishitha | 1NC23CI025 |
-| V. Swetha | 1NC23CI061 |
-| Koushik Yadav | 1NC23CI067 |
+Open
