@@ -1,4 +1,5 @@
 # SmartMirror-Vox
+
 ### Voice-Augmented Magic Mirror for Smart Environments
 
 An intelligent, multimodal smart mirror integrating Artificial Intelligence, Computer Vision, Generative AI, and multilingual voice interaction to create a context-aware personal assistant.
@@ -14,6 +15,7 @@ Unlike traditional smart mirrors that primarily display static information, Smar
 The system combines a web-based interface, Python Flask backend, n8n workflow orchestration, and external AI services to provide a unified multimodal experience.
 
 **Core capabilities:**
+
 - Multilingual voice-based conversations.
 - AI-powered outfit and appearance analysis.
 - Real-time object identification through camera input.
@@ -25,34 +27,35 @@ The system combines a web-based interface, Python Flask backend, n8n workflow or
 
 ### Live Smart Mirror Interface
 
-![SmartMirror-Vox Live Interface](assets/smartmirror-live-demo.jpg)
+
 
 *The deployed interface demonstrating the smart mirror dashboard, camera interaction, voice assistant controls, weather information, and user interface.*
 
 ### System Architecture and Workflow
 
-![SmartMirror-Vox Architecture](assets/smartmirror-architecture.jpg)
+
 
 *The system architecture and n8n automation pipeline showing intent classification, request routing, AI processing, and response delivery.*
 
 ## 3. Key Features
 
-| Feature | Implementation |
-|---|---|
-| Voice Interaction | Browser-based speech recognition and voice responses |
-| Multilingual Communication | English, Kannada, Telugu, Hindi, Tamil, Malayalam, Marathi, Bengali |
-| Conversational AI | Groq and Google Gemini |
-| Assistant Personalities | Jarvis and Lisa |
-| Outfit Analysis | Vision-language model-based appearance feedback |
-| Object Identification | Camera-based visual understanding |
-| Virtual Hairstyle Generation | FLUX.1 / Pollinations image-generation pipeline |
-| Music Interaction | Voice-based music request processing |
-| Smart Dashboard | Clock, date, weather and news information |
-| Workflow Orchestration | n8n webhook and intent-based routing |
+| Feature                      | Implementation                                                      |
+| ---------------------------- | ------------------------------------------------------------------- |
+| Voice Interaction            | Browser-based speech recognition and voice responses                |
+| Multilingual Communication   | English, Kannada, Telugu, Hindi, Tamil, Malayalam, Marathi, Bengali |
+| Conversational AI            | Groq and Google Gemini                                              |
+| Assistant Personalities      | Jarvis and Lisa                                                     |
+| Outfit Analysis              | Vision-language model-based appearance feedback                     |
+| Object Identification        | Camera-based visual understanding                                   |
+| Virtual Hairstyle Generation | FLUX.1 / Pollinations image-generation pipeline                     |
+| Music Interaction            | Voice-based music request processing                                |
+| Smart Dashboard              | Clock, date, weather and news information                           |
+| Workflow Orchestration       | n8n webhook and intent-based routing                                |
 
 ## 4. Technology Stack
 
 **Frontend**
+
 - HTML5
 - CSS3
 - JavaScript
@@ -61,6 +64,7 @@ The system combines a web-based interface, Python Flask backend, n8n workflow or
 - Web Audio API
 
 **Backend**
+
 - Python
 - Flask
 - Flask-CORS
@@ -68,6 +72,7 @@ The system combines a web-based interface, Python Flask backend, n8n workflow or
 - Pillow
 
 **Artificial Intelligence**
+
 - Groq
 - Google Gemini
 - Qwen-VL
@@ -76,12 +81,14 @@ The system combines a web-based interface, Python Flask backend, n8n workflow or
 - Pollinations
 
 **Automation and Integration**
+
 - n8n
 - Webhooks
 - REST APIs
 - JSON-based workflow processing
 
 **Deployment and Version Control**
+
 - Netlify
 - Git
 - GitHub
@@ -95,6 +102,7 @@ The application follows a modular, event-driven architecture consisting of four 
 The frontend provides the primary interaction interface.
 
 Responsibilities:
+
 - Displaying the smart mirror dashboard.
 - Showing time, date, weather, and news.
 - Capturing voice commands.
@@ -107,6 +115,7 @@ Responsibilities:
 The Flask application acts as the backend controller.
 
 Responsibilities:
+
 - Managing conversational sessions.
 - Maintaining active language and assistant preferences.
 - Handling frontend and external API communication.
@@ -193,16 +202,16 @@ External AI services provide the intelligence required by the application.
 
 The system supports eight languages:
 
-| Language | Support |
-|---|---|
-| English | Yes |
-| Kannada | Yes |
-| Telugu | Yes |
-| Hindi | Yes |
-| Tamil | Yes |
-| Malayalam | Yes |
-| Marathi | Yes |
-| Bengali | Yes |
+| Language  | Support |
+| --------- | ------- |
+| English   | Yes     |
+| Kannada   | Yes     |
+| Telugu    | Yes     |
+| Hindi     | Yes     |
+| Tamil     | Yes     |
+| Malayalam | Yes     |
+| Marathi   | Yes     |
+| Bengali   | Yes     |
 
 Users can interact with the assistant using the Jarvis or Lisa conversational personality.
 
@@ -293,101 +302,65 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Openhe local application address configured by the Flask server in your browser.
+Open the local application address configured by the Flask server in your browser.
 
 Allow microphone and camera permissions when prompted.
 
-Note: External AI services require their corresponding credentials and working API endpoints. The application also requires the n8n workflow to be configured for the associated automation features.
+**Note:** External AI services require their corresponding credentials and working API endpoints. The application also requires the n8n workflow to be configured for the associated automation features.
 
-10. Python Dependencies
+## 10. Python Dependencies
 
 The project uses the following Python packages:
 
-Package
-
-Purpose
-
-Flask
-
-Backend application framework
-
-Flask-CORS
-
-Cross-origin request handling
-
-Requests
-
-HTTP communication with external services
-
-Pillow
-
-Image processing
+| Package    | Purpose                                   |
+| ---------- | ----------------------------------------- |
+| Flask      | Backend application framework             |
+| Flask-CORS | Cross-origin request handling             |
+| Requests   | HTTP communication with external services |
+| Pillow     | Image processing                          |
 
 Install all dependencies using:
 
+```bash
 pip install -r requirements.txt
+```
 
-11. Engineering Highlights
+## 11. Engineering Highlights
 
 This project brings together several important software engineering and AI concepts:
 
-Multimodal AI: Combining text, voice, and visual inputs.
+- **Multimodal AI:** Combining text, voice, and visual inputs.
+- **Computer Vision:** Using camera input for visual analysis.
+- **Generative AI:** Producing AI-generated hairstyle previews.
+- **Workflow Automation:** Implementing intent-based request routing through n8n.
+- **Backend Development:** Managing application state and API communication with Flask.
+- **API Integration:** Connecting multiple external AI and information services.
+- **Modular Architecture:** Separating frontend, backend, workflow orchestration, and AI services.
 
-Computer Vision: Using camera input for visual analysis.
+## 12. Future Scope
 
-Generative AI: Producing AI-generated hairstyle previews.
+- Integration with additional IoT sensors and smart home devices.
+- Personalized user profiles and preference management.
+- Improved multilingual speech recognition.
+- Expanded computer vision capabilities.
+- Additional AI-powered personal assistance features.
+- Enhanced scalability and real-time processing.
 
-Workflow Automation: Implementing intent-based request routing through n8n.
+## 13. Project Team
 
-Backend Development: Managing application state and API communication with Flask.
+**Institution:** Nagarjuna College of Engineering and Technology, Bengaluru
+**Department:** Computer Science and Engineering (Artificial Intelligence & Machine Learning)
+**Project:** Major Project – Phase 2
+**Course Code:** 23CIP77
+**Project Guide:** Dr. Niranjan
 
-API Integration: Connecting multiple external AI and information services.
+| Name          | USN        |
+| ------------- | ---------- |
+| H. Sharath    | 1NC23CI022 |
+| K. Rishitha   | 1NC23CI025 |
+| V. Swetha     | 1NC23CI061 |
+| Koushik Yadav | 1NC23CI067 |
 
-Modular Architecture: Separating frontend, backend, workflow orchestration, and AI services.
+---
 
-12. Future Scope
-
-Integration with additional IoT sensors and smart home devices.
-
-Personalized user profiles and preference management.
-
-Improved multilingual speech recognition.
-
-Expanded computer vision capabilities.
-
-Additional AI-powered personal assistance features.
-
-Enhanced scalability and real-time processing.
-
-13. Project Team
-
-Institution: Nagarjuna College of Engineering and Technology, Bengaluru
-Department: Computer Science and Engineering (Artificial Intelligence & Machine Learning)
-Project: Major Project – Phase 2
-Course Code: 23CIP77
-Project Guide: Dr. Niranjan
-
-Name
-
-USN
-
-H. Sharath
-
-1NC23CI022
-
-K. Rishitha
-
-1NC23CI025
-
-V. Swetha
-
-1NC23CI061
-
-Koushik Yadav
-
-1NC23CI067
-
-<p align="center">
-  <b>SmartMirror-Vox</b><br/>
-  Intelligent Interaction. Multimodal Intelligence. Smarter Environments.
-</p>
+\<p align="center">   \<b>SmartMirror-Vox\</b>\<br/>   Intelligent Interaction. Multimodal Intelligence. Smarter Environments. \</p>
