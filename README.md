@@ -293,4 +293,101 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open
+Openhe local application address configured by the Flask server in your browser.
+
+Allow microphone and camera permissions when prompted.
+
+Note: External AI services require their corresponding credentials and working API endpoints. The application also requires the n8n workflow to be configured for the associated automation features.
+
+10. Python Dependencies
+
+The project uses the following Python packages:
+
+Package
+
+Purpose
+
+Flask
+
+Backend application framework
+
+Flask-CORS
+
+Cross-origin request handling
+
+Requests
+
+HTTP communication with external services
+
+Pillow
+
+Image processing
+
+Install all dependencies using:
+
+pip install -r requirements.txt
+
+11. Engineering Highlights
+
+This project brings together several important software engineering and AI concepts:
+
+Multimodal AI: Combining text, voice, and visual inputs.
+
+Computer Vision: Using camera input for visual analysis.
+
+Generative AI: Producing AI-generated hairstyle previews.
+
+Workflow Automation: Implementing intent-based request routing through n8n.
+
+Backend Development: Managing application state and API communication with Flask.
+
+API Integration: Connecting multiple external AI and information services.
+
+Modular Architecture: Separating frontend, backend, workflow orchestration, and AI services.
+
+12. Future Scope
+
+Integration with additional IoT sensors and smart home devices.
+
+Personalized user profiles and preference management.
+
+Improved multilingual speech recognition.
+
+Expanded computer vision capabilities.
+
+Additional AI-powered personal assistance features.
+
+Enhanced scalability and real-time processing.
+
+13. Project Team
+
+Institution: Nagarjuna College of Engineering and Technology, Bengaluru
+Department: Computer Science and Engineering (Artificial Intelligence & Machine Learning)
+Project: Major Project – Phase 2
+Course Code: 23CIP77
+Project Guide: Dr. Niranjan
+
+Name
+
+USN
+
+H. Sharath
+
+1NC23CI022
+
+K. Rishitha
+
+1NC23CI025
+
+V. Swetha
+
+1NC23CI061
+
+Koushik Yadav
+
+1NC23CI067
+
+<p align="center">
+  <b>SmartMirror-Vox</b><br/>
+  Intelligent Interaction. Multimodal Intelligence. Smarter Environments.
+</p>
