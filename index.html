@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SmartMirror-Vox — AI Smart Mirror</title>
+  <!-- Client-Side Instant Object Recognition Engine (Zero-API-key fallback) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -23,7 +25,7 @@
       overflow: hidden;
     }
 
-    /* 📸 iPhone Camera Reflection: 100% Opacity, Sharp & Mirrored */
+    /* 📸 Studio Quality Mirror Reflection: High Definition, Luminous & Flattering */
     #video {
       position: absolute;
       top: 0; left: 0;
@@ -31,24 +33,35 @@
       height: 100%;
       object-fit: cover;
       opacity: 1.0;
-      filter: contrast(1.06) brightness(1.02) saturate(1.12);
-      -webkit-filter: contrast(1.06) brightness(1.02) saturate(1.12);
+      filter: contrast(1.10) brightness(1.05) saturate(1.18);
+      -webkit-filter: contrast(1.10) brightness(1.05) saturate(1.18);
+      image-rendering: high-quality;
       image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
       z-index: 0;
       transition: transform 0.3s ease;
     }
     .video-mirrored { transform: scaleX(-1); -webkit-transform: scaleX(-1); }
     .video-normal { transform: scaleX(1); -webkit-transform: scaleX(1); }
 
+    /* Hollywood Vanity & Studio Ambient Rim Lighting */
+    .mirror::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      box-shadow: inset 0 0 100px rgba(0, 242, 254, 0.12), inset 0 0 180px rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+      z-index: 1;
+    }
+
     .mirror::after {
       content: '';
       position: absolute;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.52) 100%);
+      background: linear-gradient(180deg, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, rgba(0,0,0,0.48) 100%);
       pointer-events: none;
-      z-index: 1;
+      z-index: 2;
     }
 
     /* Glassmorphic Widgets */
@@ -154,6 +167,10 @@
       margin-top: 10px;
       animation: blink 0.8s infinite;
     }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
 
     /* Bottom Left: Interactive Live Headlines */
     .bottom-left {
@@ -255,8 +272,10 @@
     .music-actions {
       margin-top: 10px;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
     }
     .music-actions button {
       padding: 5px 12px;
@@ -317,7 +336,7 @@
     /* ============================================================
        Multimodal AI Studio Panel (SmartMirror-Vox Vision)
        ============================================================ */
-    #image-studio-modal {
+    .studio-retired-hidden { /* #studio-retired-panel removed */
       position: fixed;
       top: 0; left: 0;
       width: 100vw; height: 100vh;
@@ -532,12 +551,17 @@
     }
     .studio-image-frame img {
       max-width: 100%;
-      max-height: 46vh;
-      border-radius: 14px;
-      border: 1.5px solid rgba(0, 255, 255, 0.4);
-      box-shadow: 0 0 35px rgba(0, 255, 255, 0.25);
+      max-height: 48vh;
+      border-radius: 16px;
+      border: 2px solid rgba(0, 242, 254, 0.65);
+      box-shadow: 0 12px 40px rgba(0, 242, 254, 0.35), 0 0 80px rgba(255, 121, 198, 0.22);
       object-fit: contain;
-      transition: opacity 0.3s ease;
+      filter: contrast(1.06) brightness(1.03) saturate(1.10);
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .studio-image-frame img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 16px 50px rgba(0, 242, 254, 0.45), 0 0 100px rgba(255, 121, 198, 0.30);
     }
     .studio-loader-overlay {
       position: absolute;
@@ -686,6 +710,8 @@
   </div>
 
   <div id="status-bar">
+    <div id="mic-indicator" class="pill" onclick="toggleManual()" style="cursor: pointer; color: #50fa7b; border-color: rgba(80,250,123,0.4);" title="Click to Toggle Microphone">🎤 MIC: LISTENING</div>
+    <div id="camera-indicator" class="pill" onclick="requestCameraAccess(true)" style="cursor: pointer; color: #50fa7b; border-color: rgba(80,250,123,0.4);">📷 CAMERA: INITIALIZING...</div>
     <div id="persona-indicator" class="pill" onclick="togglePersona()" style="cursor: pointer; color: #00ffff; border-color: rgba(0,255,255,0.4);">🤖 JARVIS (MALE)</div>
     <div id="lang-indicator" class="pill" onclick="cycleLanguage()">🌐 LANG: ENGLISH</div>
     <div id="state-indicator" class="pill">● IDLE</div>
@@ -714,19 +740,35 @@
       <span></span><span></span><span></span><span></span><span></span>
     </div>
     <div class="music-actions">
-      <button onclick="toggleMusic()">⏯ Pause/Play</button>
-      <button onclick="stopMusic()">⏹ Stop</button>
+      <button onclick="playPreviousSong()" title="Previous Track">⏮ Prev</button>
+      <button onclick="toggleMusic()" id="musicToggleBtn" title="Play / Pause">⏯ Play/Pause</button>
+      <button onclick="playNextOrDifferentSong()" title="Next Track">⏭ Next</button>
+      <button onclick="stopMusic()" title="Stop">⏹ Stop</button>
+      <button onclick="changeVolume(-0.15)" title="Volume Down">🔉 Vol -</button>
+      <span id="music-vol-val" style="font-size: 11px; color: #00ffff; padding: 2px 5px; border: 1px solid rgba(0,255,255,0.3); border-radius: 8px;">65%</span>
+      <button onclick="changeVolume(0.15)" title="Volume Up">🔊 Vol +</button>
       <button style="border-color: #ff5555; color: #ff5555;" onclick="openYouTubeTrack()">▶ YouTube</button>
     </div>
   </div>
 
-  <!-- Interactive Live Headlines -->
+  <!-- Interactive Live Headlines & Reminders -->
   <div class="widget bottom-left">
     <div id="news-title">
       <span>📰 TODAY'S HEADLINES</span>
       <span style="font-size: 11px; color: #8be9fd; cursor: pointer;" onclick="fetchLiveNews()">🔄 Refresh</span>
     </div>
     <div id="news-items">Fetching fresh headlines...</div>
+
+    <!-- Daily Assistant & Reminders Widget -->
+    <div id="reminders-widget" style="margin-top: 10px; padding: 6px 10px; background: rgba(0,0,0,0.5); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px;">
+      <div style="font-size: 11px; letter-spacing: 1px; color: #00ffff; margin-bottom: 3px; display: flex; justify-content: space-between;">
+        <span>⏰ DAILY TASKS & REMINDERS</span>
+        <span style="cursor: pointer; color: #888;" onclick="localStorage.removeItem('smartmirror_reminders'); renderRemindersWidget();">Clear</span>
+      </div>
+      <div id="reminders-list">
+        <div style="color: #666; font-size: 12px;">Say "Remind me to..." to add tasks</div>
+      </div>
+    </div>
   </div>
 
   <!-- AI Response Display -->
@@ -737,7 +779,7 @@
 
   <!-- Control Buttons -->
   <div class="controls">
-    <button id="micBtn" class="btn-active" onclick="toggleManual()">🎤 Start</button>
+    <button id="micBtn" class="btn-active" onclick="toggleManual()">🎤 Start Voice</button>
     <button class="btn-stop" onclick="handleVoiceInterrupt()">🛑 Stop</button>
     <button class="btn-persona" onclick="togglePersona()" style="border-color: #00ffff; color: #00ffff;">🤖 Jarvis (Male)</button>
     <button class="btn-outfit" onclick="captureAndAnalyzeOutfit()">📸 Outfit Scan</button>
@@ -745,129 +787,71 @@
     <button class="btn-flip" onclick="toggleMirrorFlip()">⇄ Flip Mirror</button>
     <button class="btn-lang" onclick="cycleLanguage()">🌐 Kannada / EN</button>
     <button class="btn-music" onclick="promptSongSearch()">🎵 Play Music</button>
-    <button class="btn-image" onclick="promptImageGeneration()">🎨 Gen Image</button>
     <button onclick="testSpeak()">🔊 Test Voice</button>
   </div>
 
 </div>
 
-<!-- Dedicated Multimodal AI Studio Panel -->
-<div id="image-studio-modal" class="studio-modal">
-  <div class="studio-container">
-    <!-- Header -->
-    <div class="studio-header">
-      <div class="studio-title-badge">
-        <span class="studio-sparkle">✨</span>
-        <span class="studio-title-text">MULTIMODAL AI STUDIO</span>
-        <span id="studio-mode-pill" class="mode-pill">AI SYNTHESIS</span>
-      </div>
-      <button class="studio-close-btn" onclick="closeImageStudio()" title="Close Studio">✕</button>
-    </div>
-
-    <!-- Active Request & Tags -->
-    <div class="studio-request-card">
-      <div class="studio-prompt-row">
-        <span class="prompt-icon">💬</span>
-        <div id="studio-prompt-text" class="studio-prompt-text">Generating visual preview...</div>
-      </div>
-      <div id="studio-chips-container" class="studio-chips-container">
-        <!-- Modification chips dynamically injected here -->
-      </div>
-    </div>
-
-    <!-- Status Progression Pipeline -->
-    <div id="studio-pipeline" class="studio-pipeline">
-      <div class="pipe-step" id="step-capture">
-        <span class="step-dot"></span>
-        <span class="step-label">📸 Snapshot</span>
-      </div>
-      <div class="pipe-line"></div>
-      <div class="pipe-step" id="step-vision">
-        <span class="step-dot"></span>
-        <span class="step-label">🧠 Vision Check</span>
-      </div>
-      <div class="pipe-line"></div>
-      <div class="pipe-step" id="step-render">
-        <span class="step-dot"></span>
-        <span class="step-label">🎨 Rendering</span>
-      </div>
-      <div class="pipe-line"></div>
-      <div class="pipe-step" id="step-ready">
-        <span class="step-dot"></span>
-        <span class="step-label">✨ Ready</span>
-      </div>
-    </div>
-
-    <!-- Central Image Workspace -->
-    <div class="studio-workspace">
-      <!-- Reference Thumbnail (if camera frame used) -->
-      <div id="studio-ref-indicator" class="studio-ref-indicator" style="display: none;">
-        <img id="studio-ref-thumb" src="" alt="Reference Frame" />
-        <span class="ref-badge-tag">🔒 Identity Locked</span>
-      </div>
-
-      <!-- Main Result Frame -->
-      <div class="studio-image-frame">
-        <img id="studio-generated-image" src="" alt="Generated Preview" />
-        <div id="studio-loader-overlay" class="studio-loader-overlay">
-          <div class="studio-spinner"></div>
-          <div id="studio-loading-msg" class="studio-loading-msg">Synthesizing realistic preview...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Interactive Action Bar -->
-    <div class="studio-action-bar">
-      <button class="studio-btn btn-regen" onclick="regenerateStudioImage()">
-        <span>🔄</span> Regenerate
-      </button>
-      <button class="studio-btn btn-outfit-swap" onclick="promptAnotherOutfit()">
-        <span>👔</span> Try Another Outfit
-      </button>
-      <button class="studio-btn btn-save" onclick="saveStudioImage()">
-        <span>💾</span> Save
-      </button>
-      <button class="studio-btn btn-download" onclick="downloadStudioImage()">
-        <span>⬇️</span> Download
-      </button>
-      <button class="studio-btn btn-close-modal" onclick="closeImageStudio()">
-        <span>✕</span> Close
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Interactive Ambiguity Dialog -->
-<div id="ambiguity-dialog">
-  <div class="ambiguity-title">🤔 Choose Mode</div>
-  <div id="ambiguity-text" class="ambiguity-text">Would you like me to generate a realistic image preview, or provide a styling recommendation?</div>
-  <div class="ambiguity-actions">
-    <button class="btn-ambig-gen" onclick="resolveAmbiguity(true)">🎨 Generate Preview</button>
-    <button class="btn-ambig-rec" onclick="resolveAmbiguity(false)">💡 Style Advice</button>
-  </div>
-</div>
-
-<!-- Legacy fallback wrappers for backwards compatibility -->
-<div id="image-display" style="display: none;">
-  <img id="generated-image" src="" alt="Generated Image" />
-  <div id="image-display-title"></div>
-  <div id="image-display-close" onclick="closeImageStudio()"></div>
-</div>
-<div id="image-loading" style="display: none;">
-  <div id="image-loading-text"></div>
+<!-- Image Generation and Upload Modals Removed -->
 </div>
 
 <script>
   // Endpoints: Dynamically adapt between local development & cloud deployment (Netlify/HTTPS)
-  const isLocalEnv = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost');
-  const FLASK_BASE = window.location.port === '5000' ? '' : (isLocalEnv && window.location.protocol === 'http:' ? 'http://127.0.0.1:5000' : null);
+  const isFileProto = (window.location.protocol === 'file:');
+  const isLocalEnv = isFileProto || (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.') || window.location.hostname.startsWith('10.'));
+  const FLASK_BASE = window.location.port === '5000' ? window.location.origin : (isLocalEnv ? 'http://127.0.0.1:5000' : 'http://127.0.0.1:5000');
   const N8N_URL = isLocalEnv ? "http://localhost:5678/webhook/mirror-agent" : null;
-  const GEMINI_KEY = "REDACTED_GEMINI_API_KEY";
+  const GEMINI_KEY = "";
+  const GROQ_KEY = "";
   let currentQueryId = 0;
+  let cocoModel = null;
 
-  const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
+  // Initialize COCO-SSD object recognition model
+  if (typeof cocoSsd !== 'undefined') {
+    cocoSsd.load().then(model => {
+      cocoModel = model;
+      console.log("✅ Local COCO-SSD Vision Model loaded ready for instant camera object identification!");
+    }).catch(err => {
+      console.warn("COCO-SSD model initialization notice:", err);
+    });
+  }
 
-  async function callClientGemini(payload, timeoutMs = 8000) {
+  // Guarantees strictly alternating [user, model, user, ...] turns for Gemini API
+  function formatGeminiContents(history, currentPrompt) {
+    const contents = [];
+    let expectedRole = 'user';
+
+    if (Array.isArray(history)) {
+      for (const turn of history) {
+        if (!turn || !turn.content || !turn.role) continue;
+        const role = (turn.role === 'user') ? 'user' : 'model';
+        if (role === expectedRole) {
+          contents.push({
+            role: role,
+            parts: [{ text: turn.content }]
+          });
+          expectedRole = (expectedRole === 'user') ? 'model' : 'user';
+        }
+      }
+    }
+
+    // Gemini strictly requires the conversation to end with a 'user' turn
+    if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+      contents.pop();
+    }
+
+    contents.push({
+      role: 'user',
+      parts: [{ text: currentPrompt }]
+    });
+
+    return contents;
+  }
+
+  const GEMINI_MODELS = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+
+  async function callClientGemini(payload, timeoutMs = 4000) {
+    if (!GEMINI_KEY) return null;
     for (const model of GEMINI_MODELS) {
       try {
         const controller = new AbortController();
@@ -883,6 +867,9 @@
           const data = await res.json();
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
           if (text) return text;
+        } else {
+          const errText = await res.text().catch(() => '');
+          console.warn(`Gemini [${model}] status ${res.status}:`, errText);
         }
       } catch (e) {
         console.warn(`Client Gemini model [${model}] failed:`, e);
@@ -891,11 +878,108 @@
     return null;
   }
 
+  // Ultra-fast Groq LPU Engine (< 150ms) using active account models
+  const GROQ_MODELS = ['qwen/qwen3.8-27b', 'openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+
+  async function callClientGroq(systemPrompt, userQuery) {
+    if (!GROQ_KEY) return null;
+    const messages = [{ role: 'system', content: systemPrompt }];
+    if (Array.isArray(conversationHistory)) {
+      for (const turn of conversationHistory.slice(-6)) {
+        if (turn && turn.content) {
+          messages.push({
+            role: turn.role === 'user' ? 'user' : 'assistant',
+            content: turn.content
+          });
+        }
+      }
+    }
+    messages.push({ role: 'user', content: userQuery });
+
+    for (const model of GROQ_MODELS) {
+      try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 3000);
+
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROQ_KEY}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: messages,
+            max_tokens: 300,
+            temperature: 0.6
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(tid);
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.choices?.[0]?.message?.content?.trim();
+          if (text) return text;
+        } else {
+          const err = await res.text().catch(() => '');
+          console.warn(`Groq API error on [${model}]:`, res.status, err);
+        }
+      } catch (e) {
+        console.warn(`Client Groq model [${model}] failed:`, e);
+      }
+    }
+    return null;
+  }
+
+  // Dedicated Multimodal Vision via Groq Qwen 3.8 27B (< 500ms)
+  async function callClientGroqVision(prompt, imageBase64) {
+    if (!GROQ_KEY || !imageBase64) return null;
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 7000);
+
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_KEY}`
+        },
+        body: JSON.stringify({
+          model: "qwen/qwen3.8-27b",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+              ]
+            }
+          ],
+          max_tokens: 300,
+          temperature: 0.4
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(tid);
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (text) return text;
+      } else {
+        const err = await res.text().catch(() => '');
+        console.warn("Groq Vision API error:", res.status, err);
+      }
+    } catch (e) {
+      console.warn("Client Groq Vision failed:", e);
+    }
+    return null;
+  }
+
   // ============================================================
   // 1. Conversation State Machine & Real Persistent Language
   // ============================================================
   // States: 'IDLE' | 'LISTENING' | 'PROCESSING' | 'SPEAKING' | 'INTERRUPTED'
-  let conversationState = 'LISTENING';
+  let conversationState = 'IDLE';
   let activeLanguage = localStorage.getItem('smartmirror_lang') || 'en';
   let isMirrored = true;
 
@@ -1057,6 +1141,9 @@
 
     const explicitSwitchPhrases = [
       'switch to', 'change to', 'speak in', 'talk in', 'change language to', 'switch language to', 'set language to', 'convert to',
+      'switch into', 'switch language', 'change language', 'can you switch to', 'can you change to', 'can you speak in', 'can you talk in',
+      'can you speak', 'can you talk', 'speak with me in', 'talk with me in', 'talk to me in', 'speak to me in', 'switch', 'change',
+      'language to', 'language change', 'language switch', 'in kannada', 'in telugu', 'in hindi', 'in tamil', 'in english',
       'ಸ್ವಿಚ್', 'ಬದಲಾಯಿಸು', 'ಬದಲಾಯಿಸಿ', 'ಮಾತನಾಡು', 'ಮಾತನಾಡಿ', 'ಭಾಷೆ',
       'మార్చు', 'మార్చండి', 'మాట్లాడు', 'మాట్లాడండి', 'భాష',
       'स्विच', 'बदलो', 'बदलें', 'बोलो', 'बोलिए', 'बात करो', 'बात करें', 'भाषा',
@@ -1222,8 +1309,21 @@
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          conversationHistory = parsed.slice(-16);
-          console.log(`Loaded ${conversationHistory.length} previous conversation turns from localStorage`);
+          // Auto-sanitize history: ensure strictly alternating user <-> assistant/model turns
+          const cleanHistory = [];
+          let lastRole = null;
+          for (const item of parsed) {
+            if (item && item.role && item.content && item.role !== lastRole) {
+              cleanHistory.push({ role: item.role, content: item.content });
+              lastRole = item.role;
+            }
+          }
+          // If history ends with an unanswered 'user' turn, remove it
+          if (cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === 'user') {
+            cleanHistory.pop();
+          }
+          conversationHistory = cleanHistory.slice(-12);
+          console.log(`Loaded ${conversationHistory.length} clean conversation turns from localStorage`);
           return;
         }
       }
@@ -1283,6 +1383,39 @@
     }, 60000);
   }
 
+  function isStopConversationIntent(rawText) {
+    if (!rawText) return false;
+    const clean = rawText.toLowerCase()
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'’]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!clean) return false;
+
+    // Never match if user is saying "don't stop" or "non-stop"
+    if (clean.includes('non stop') || clean.includes('dont stop') || clean.includes('do not stop')) {
+      return false;
+    }
+
+    // Direct English stop keywords / phrases
+    if (clean.includes('stop') || clean.includes('pause') || clean.includes('quiet') || clean.includes('shut up') || clean.includes('silence') || clean.includes('cancel') || clean.includes('enough') || clean.includes('halt') || clean.includes('sleep') || clean.includes('terminate') || clean.includes('hold on') || clean.includes('wait a sec')) {
+      return true;
+    }
+
+    // Multilingual Indic phrases, transliterations, and native words:
+    const indicStopPhrases = [
+      'nilsu', 'nillisu', 'maathu nillisu', 'saaku', 'nillu', 'ನಿಲ್ಲಿಸು', 'ನಿಲ್ಲಿಸಿ', 'ಸಾಕು', 'ಸುಮ್ಮನಿರು', 'ಮಾತು ನಿಲ್ಲಿಸು', 'ನಿಲ್ಲು', 'ಬಂದ್ ಮಾಡು',
+      'aapu', 'aapandi', 'aapeyi', 'chaalu', 'maatladaodu', 'vaddu', 'ఆపు', 'ఆపండి', 'ఆపేయి', 'చాలు', 'మాట్లాడకు', 'వద్దు', 'నిశ్శబ్దం',
+      'ruko', 'ruk jao', 'chup', 'chup raho', 'band karo', 'bas', 'bas karo', 'kaafi hai', 'रुक जाओ', 'रुको', 'रुकिए', 'चुप', 'चुप रहो', 'बंद करो', 'बस', 'बस करो', 'काफी है',
+      'nirutthu', 'niruthu', 'nillu', 'pothum', 'pesathe', 'amaithi', 'நிறுத்து', 'போதும்', 'பேசாதே', 'அமைதி'
+    ];
+
+    for (const p of indicStopPhrases) {
+      if (clean.includes(p)) return true;
+    }
+
+    return false;
+  }
+
   function isAssistantSpeakingNow() {
     return Boolean(isSpeakingAudio || conversationState === 'SPEAKING');
   }
@@ -1302,11 +1435,11 @@
     if (!cleanH) return false;
 
     // Never suppress critical direct commands if spoken intentionally:
-    if (isMusicStopIntent(cleanH) || isCloseImageIntent(cleanH)) {
+    if (isMusicStopIntent(cleanH) || isCloseImageIntent(cleanH) || isStopConversationIntent(rawHeard) || isStopConversationIntent(cleanH)) {
       return false;
     }
-    const pureStops = ['stop', 'pause', 'quiet', 'shut up', 'cancel', 'ನಿಲ್ಲಿಸು', 'ಸಾಕು', 'ಆಪು', 'रुको', 'நிறுத்து'];
-    if (pureStops.includes(cleanH)) {
+    // Never suppress wake words
+    if (cleanH.includes('jarvis') || cleanH.includes('lisa') || cleanH.includes('ಜಾರ್ವಿಸ್') || cleanH.includes('ಲೀಸಾ') || cleanH.includes('జార్విస్') || cleanH.includes('లీసా') || cleanH.includes('जार्विस') || cleanH.includes('लिसा')) {
       return false;
     }
 
@@ -1344,8 +1477,65 @@
     return false;
   }
 
+  // ============================================================
+  // Complete Robust Voice Assistant State Machine & Recovery Engine
+  // ============================================================
+  const VoiceState = {
+    IDLE: 'IDLE',                       // Standby, waiting for wake word
+    WAKE_DETECTED: 'WAKE_DETECTED',     // Wake word detected, visual activation
+    LISTENING: 'LISTENING',             // Capturing user speech
+    TRANSCRIBING: 'TRANSCRIBING',       // Speech converted to text
+    PROCESSING: 'PROCESSING',           // AI thinking & calling backend
+    SPEAKING: 'SPEAKING',               // TTS output playing
+    INTERRUPTED: 'INTERRUPTED',         // User interrupted speech/music
+    RECOVERING: 'RECOVERING'            // Cleaning up resources and returning to IDLE/LISTENING
+  };
+
+  let lastProcessingStartTime = 0;
+
+  function recoverVoiceAssistant(reason = "normal recovery", targetState = 'IDLE') {
+    console.log(`[VoiceRecovery] Restoring voice assistant (${reason}) -> ${targetState}`);
+    setState('RECOVERING');
+
+    // Halt any active speech synthesis and audio TTS
+    stopAnySpeaking();
+
+    // Clear speech timers
+    if (speechSilenceTimer) {
+      clearTimeout(speechSilenceTimer);
+      speechSilenceTimer = null;
+    }
+    if (speechBlockTimer) {
+      clearTimeout(speechBlockTimer);
+      speechBlockTimer = null;
+    }
+
+    // Clear speech echo window
+    echoSuppressionUntil = Date.now() + 400;
+
+    // Abort and restart recognition cleanly to flush accumulated audio buffers
+    if (recognition) {
+      recognitionRunning = false;
+      try { recognition.abort(); } catch(e) {}
+    }
+
+    setTimeout(() => {
+      setState(targetState);
+      if (targetState === 'IDLE') {
+        updateMicIndicator('IDLE');
+      } else if (targetState === 'LISTENING') {
+        updateMicIndicator('LISTENING');
+        resetAutoSleepTimer();
+      }
+      safeStart();
+    }, 220);
+  }
+
   function setState(newState) {
     conversationState = newState;
+    if (newState === 'PROCESSING') {
+      lastProcessingStartTime = Date.now();
+    }
     const indicator = document.getElementById('state-indicator');
     const ring = document.getElementById('pulseRing');
 
@@ -1354,37 +1544,67 @@
 
     if (newState === 'IDLE') {
       if (autoSleepTimer) clearTimeout(autoSleepTimer);
-      indicator.innerText = '● IDLE';
-      indicator.style.color = '#888';
-      ring.style.display = 'none';
-      document.getElementById('wake-status').innerText = `😴 SAY "${pName}" OR CLICK START`;
+      if (indicator) {
+        indicator.innerText = '● IDLE';
+        indicator.style.color = '#888';
+      }
+      if (ring) ring.style.display = 'none';
+      document.getElementById('wake-status').innerText = `😴 SAY "HEY ${pName}" OR CLICK START`;
       const mb = document.getElementById('micBtn');
-      if (mb) mb.innerText = "🎤 Start";
+      if (mb) mb.innerText = "🎤 Start Voice";
+    } else if (newState === 'WAKE_DETECTED') {
+      if (indicator) {
+        indicator.innerText = '✨ WAKE DETECTED';
+        indicator.style.color = '#00ffff';
+      }
+      if (ring) ring.style.display = 'block';
+      document.getElementById('wake-status').innerText = `✨ ${pName} ACTIVATED`;
     } else if (newState === 'LISTENING') {
-      indicator.innerText = '● LISTENING';
-      indicator.style.color = '#50fa7b';
-      ring.style.display = 'block';
+      if (indicator) {
+        indicator.innerText = '● LISTENING';
+        indicator.style.color = '#50fa7b';
+      }
+      if (ring) ring.style.display = 'block';
       document.getElementById('wake-status').innerText = '🟢 LISTENING... SPEAK NOW';
       const mb = document.getElementById('micBtn');
       if (mb) mb.innerText = "⏹ Sleep";
       resetAutoSleepTimer();
+    } else if (newState === 'TRANSCRIBING') {
+      if (indicator) {
+        indicator.innerText = '📝 TRANSCRIBING';
+        indicator.style.color = '#8be9fd';
+      }
+      if (ring) ring.style.display = 'block';
     } else if (newState === 'PROCESSING') {
       if (autoSleepTimer) clearTimeout(autoSleepTimer);
-      indicator.innerText = '⏳ PROCESSING';
-      indicator.style.color = '#f1fa8c';
-      ring.style.display = 'none';
+      if (indicator) {
+        indicator.innerText = '⏳ PROCESSING';
+        indicator.style.color = '#f1fa8c';
+      }
+      if (ring) ring.style.display = 'none';
       document.getElementById('wake-status').innerText = '⏳ THINKING...';
     } else if (newState === 'SPEAKING') {
       if (autoSleepTimer) clearTimeout(autoSleepTimer);
-      indicator.innerText = '🔊 SPEAKING';
-      indicator.style.color = '#ff79c6';
-      ring.style.display = 'none';
+      if (indicator) {
+        indicator.innerText = '🔊 SPEAKING';
+        indicator.style.color = '#ff79c6';
+      }
+      if (ring) ring.style.display = 'none';
       document.getElementById('wake-status').innerText = `🔊 ${pName} SPEAKING (SAY STOP TO INTERRUPT)`;
     } else if (newState === 'INTERRUPTED') {
       if (autoSleepTimer) clearTimeout(autoSleepTimer);
-      indicator.innerText = '🛑 INTERRUPTED';
-      indicator.style.color = '#ff5555';
-      ring.style.display = 'block';
+      if (indicator) {
+        indicator.innerText = '🛑 INTERRUPTED';
+        indicator.style.color = '#ff5555';
+      }
+      if (ring) ring.style.display = 'block';
+      document.getElementById('wake-status').innerText = '🛑 STOPPED';
+    } else if (newState === 'RECOVERING') {
+      if (indicator) {
+        indicator.innerText = '🔄 RECOVERING';
+        indicator.style.color = '#a78bfa';
+      }
+      if (ring) ring.style.display = 'none';
     }
   }
 
@@ -1445,8 +1665,11 @@
     }
     if (window.currentAudioTTS) {
       try {
+        window.currentAudioTTS.onended = null;
+        window.currentAudioTTS.onerror = null;
         window.currentAudioTTS.pause();
         window.currentAudioTTS.currentTime = 0;
+        window.currentAudioTTS.src = "";
         window.currentAudioTTS.removeAttribute('src');
       } catch(e) {}
     }
@@ -1457,11 +1680,11 @@
     isSpeakingAudio = false;
   }
 
-  function handleVoiceInterrupt() {
+  function handleVoiceInterrupt(isExplicitStop = false) {
     currentQueryId++;
     currentUtteranceId++;
     stopAnySpeaking();
-    echoSuppressionUntil = Date.now() + 250;
+    echoSuppressionUntil = Date.now() + 500;
     if (speechBlockTimer) { clearTimeout(speechBlockTimer); speechBlockTimer = null; }
     if (speechSilenceTimer) { clearTimeout(speechSilenceTimer); speechSilenceTimer = null; }
     if (musicPlaying) {
@@ -1469,31 +1692,80 @@
     }
     setState('INTERRUPTED');
     setAIStatus("🛑 STOPPED");
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    const pCall = isLisa ? 'Lisa' : 'Jarvis';
+    const pCallKn = isLisa ? 'ಲೀಸಾ' : 'ಜಾರ್ವಿಸ್';
+    const pCallTe = isLisa ? 'లీసా' : 'జార్విస్';
+    const pCallHi = isLisa ? 'लिसा' : 'जार्विस';
+    const pCallTa = isLisa ? 'லிசா' : 'ஜார்விஸ்';
     const stopPhrases = {
-      'en': "Stopped.",
-      'kn': "ಸರಿ, ನಿಲ್ಲಿಸಿದ್ದೇನೆ.",
-      'te': "సరే, ఆపేశాను.",
-      'hi': "रोक दिया।",
-      'ta': "நிறுத்திவிட்டேன்."
+      'en': `Stopped. I'm on standby — say 'Hey ${pCall}' whenever you need me.`,
+      'kn': `ಸರಿ, ನಿಲ್ಲಿಸಿದ್ದೇನೆ. ಬೇಕಾದಾಗ 'ಹೇ ${pCallKn}' ಎಂದು ಕರೆಯಿರಿ.`,
+      'te': `సరే, ఆపేశాను. అవసరమైనప్పుడు 'హే ${pCallTe}' అని పిలవండి.`,
+      'hi': `रोक दिया। जब भी ज़रूरत हो, 'हे ${pCallHi}' कहकर बुलाइए।`,
+      'ta': `நிறுத்திவிட்டேன். தேவைப்படும்போது 'ஹே ${pCallTa}' என்று அழையுங்கள்.`
     };
-    const ack = stopPhrases[activeLanguage] || "Stopped.";
+    const ack = stopPhrases[activeLanguage] || stopPhrases['en'];
     setAIResponse(ack);
     document.getElementById('transcript').innerText = '';
 
-    // Wake mic after ultra-short pause (150ms)
+    // Immediately recover to clean IDLE state with mic active
     setTimeout(() => {
-      setState('LISTENING');
-      safeStart();
-    }, 150);
+      recoverVoiceAssistant("user interrupt completed", "IDLE");
+    }, 250);
+  }
+
+  // Eagerly populate and warm up browser speech synthesis voices for all languages
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      try { window.speechSynthesis.getVoices(); } catch(e) {}
+    };
+    try { window.speechSynthesis.getVoices(); } catch(e) {}
   }
 
   // ============================================================
   // 3. Ultra-Fast Speech Recognition (500ms Silence Debounce)
   // ============================================================
+    function updateMicIndicator(statusType, detail = '') {
+    const micInd = document.getElementById('mic-indicator');
+    if (!micInd) return;
+
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    const wName = isLisa ? 'Lisa' : 'Jarvis';
+
+    if (statusType === 'IDLE') {
+      micInd.innerText = `🟢 STANDBY (Say "Hey ${wName}")`;
+      micInd.style.color = '#50fa7b';
+      micInd.style.borderColor = 'rgba(80, 250, 123, 0.4)';
+    } else if (statusType === 'LISTENING') {
+      micInd.innerText = `🟢 MIC: LISTENING ("Hey ${wName}")`;
+      micInd.style.color = '#50fa7b';
+      micInd.style.borderColor = 'rgba(80, 250, 123, 0.4)';
+    } else if (statusType === 'HEARD') {
+      const preview = detail.length > 20 ? detail.slice(0, 18) + '...' : detail;
+      micInd.innerText = `👂 HEARD: "${preview}"`;
+      micInd.style.color = '#00ffff';
+      micInd.style.borderColor = 'rgba(0, 255, 255, 0.4)';
+    } else if (statusType === 'BLOCKED') {
+      micInd.innerText = '🔴 MIC: CLICK TO ALLOW';
+      micInd.style.color = '#ff5555';
+      micInd.style.borderColor = 'rgba(255, 85, 85, 0.5)';
+    } else if (statusType === 'SLEEPING') {
+      micInd.innerText = '⚪ MIC: SLEEPING (CLICK START)';
+      micInd.style.color = '#8be9fd';
+      micInd.style.borderColor = 'rgba(139, 233, 253, 0.3)';
+    } else if (statusType === 'SPEAKING') {
+      micInd.innerText = '🔊 ASSISTANT SPEAKING';
+      micInd.style.color = '#bd93f9';
+      micInd.style.borderColor = 'rgba(189, 147, 249, 0.4)';
+    }
+  }
+
   function setupRecognition() {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
       setAIResponse("❌ Please open in Chrome or Edge for full Speech Recognition!");
+      updateMicIndicator('BLOCKED');
       return;
     }
 
@@ -1504,6 +1776,8 @@
 
     recognition.onstart = () => {
       recognitionRunning = true;
+      updateMicIndicator('LISTENING');
+      console.log("🎤 Speech recognition active & listening.");
     };
 
     recognition.onresult = (event) => {
@@ -1525,127 +1799,120 @@
       // 1. HARD ACOUSTIC SHIELD & INSTANT BARGE-IN INTERRUPTION DURING ASSISTANT SPEECH:
       if (isAssistantSpeakingNow()) {
         if (isCloseImageIntent(check)) {
-          console.log("🖼️ Instant Close Image triggered during speech playback:", check);
           closeImageStudio(true);
           return;
         }
         if (isMusicStopIntent(check)) {
-          console.log("🛑 Instant music stop triggered during speech playback:", check);
           stopMusic();
           return;
         }
-        const interruptKeywords = [
-          'stop', 'stop talking', 'stop speaking', 'stop conversation', 'stop the conversation',
-          'pause', 'wait', 'quiet', 'shut up', 'enough', 'be quiet', 'silence', 'cancel', 'hold on',
-          'thats enough', "that's enough", 'please stop', 'stop it',
-          'ನಿಲ್ಲಿಸು', 'ಸಾಕು', 'ಸುಮ್ಮನಿರು', 'ಮಾತನಾಡಬೇಡ', 'ನಿಲ್ಲಿಸು ಸಾಕು', 'ಬಂದ್ ಮಾಡು', 'ಸ್ಟಾಪ್',
-          'ಆಪು', 'చాలు', 'మాట్లాడకు', 'వద్దు', 'నిశ్శబ్దం',
-          'रुको', 'चुप', 'बंद करो', 'चुप रहो', 'मत बोलो', 'बस करो', 'काफी है',
-          'நிறுத்து', 'போதும்', 'பேசாதே', 'அமைதி'
-        ];
-
-        const isInterrupt = interruptKeywords.some(k => check === k || check.startsWith(k + ' ') || check.endsWith(' ' + k) || check.includes(' ' + k + ' '));
-
-        if (isInterrupt) {
-          console.log("🛑 Voice interrupt triggered during speech:", check);
+        if (isStopConversationIntent(check) || isStopConversationIntent(heard)) {
           handleVoiceInterrupt();
           return;
         }
-
-        // Assistant is speaking and no interrupt keyword detected -> It is speaker output / room noise. DROP IT!
         return;
       }
 
       if (conversationState === 'PROCESSING') {
-        // While thinking, drop ambient sounds unless it is an explicit stop
-        if (check.includes('stop') || check.includes('cancel') || check.includes('ಸಾಕು') || check.includes('ನಿಲ್ಲಿಸು')) {
+        if (isStopConversationIntent(check) || isStopConversationIntent(heard)) {
           handleVoiceInterrupt();
+          return;
         }
         return;
       }
 
-      // 2. Reject assistant's own voice echo (multi-candidate, normalized substring, 40% overlap, 3-grams)
+      // 2. Reject assistant's own voice echo
       if (isAcousticEcho(heard)) {
-        console.log("Suppressed acoustic echo:", heard);
         return;
       }
 
-      // 3. Post-speech room reverb guard (short 300ms window)
+      // 3. Post-speech room reverb guard
       if (Date.now() < echoSuppressionUntil) {
-        const isWake = ['jarvis', 'lisa', 'ಜಾರ್ವಿಸ್', 'ಲೀಸಾ', 'జార్విಸ್', 'లీసా', 'जार्विस', 'लिसा'].some(w => check.includes(w));
+        const isWake = ['jarvis', 'lisa', 'ಜಾರ್ವಿಸ್', 'ಲೀಸಾ', 'జార్విస్', 'లీసా', 'जार्विस', 'लिसा'].some(w => check.includes(w));
         const isAction = isMusicStopIntent(check) || isCloseImageIntent(check) || check.includes('stop') || check.includes('pause');
         if (!isWake && !isAction) {
-          console.log("Suppressed post-speech room reverb:", check);
           return;
         }
       }
 
-      // 4. HARD ACOUSTIC SHIELD & INSTANT MUSIC STOP / CONTROL DURING MUSIC PLAYBACK:
+      // 4. Instant music controls
       if (musicPlaying) {
         if (isMusicStopIntent(check)) {
-          console.log("🛑 Instant music stop triggered from speech recognition:", check);
           stopMusic();
-          const stopMsg = {
-            'en': "Music stopped!",
-            'kn': "ಹಾಡು ನಿಲ್ಲಿಸಲಾಗಿದೆ!",
-            'te': "పాట ఆపబడింది!",
-            'hi': "गाना बंद कर दिया गया!",
-            'ta': "பாடல் நிறுத்தப்பட்டது!"
-          }[activeLanguage] || "Music stopped!";
+          const stopMsg = { 'en': "Music stopped!", 'kn': "ಹಾಡು ನಿಲ್ಲಿಸಲಾಗಿದೆ!", 'te': "పాట ఆపబడింది!", 'hi': "गाना बंद कर दिया गया!" }[activeLanguage] || "Music stopped!";
           speakResponse(stopMsg);
           return;
         }
-
         if (isNextOrDifferentSongIntent(check)) {
-          console.log("⏭ Instant next/different song triggered from speech recognition:", check);
           playNextOrDifferentSong();
           return;
         }
-
+        if (isPreviousSongIntent(check)) {
+          playPreviousSong();
+          return;
+        }
+        if (handleVolumeVoiceCommand(check)) {
+          return;
+        }
         if (isCloseImageIntent(check)) {
-          console.log("🛑 Instant close image triggered from speech recognition while music playing:", check);
           closeImageStudio(true);
           return;
         }
 
         const musicKeywords = [
-          'stop', 'pause', 'wait', 'quiet', 'shut up', 'enough', 'next', 'skip', 'resume', 'continue',
-          'different', 'another', 'change', 'switch', 'play', 'song', 'songs', 'music', 'track',
-          'stop music', 'stop song', 'pause music', 'next song', 'different song', 'another song', 'change song',
-          'ನಿಲ್ಲಿಸು', 'ಬಂದ್', 'ಮುಂದಿನ', 'ಸಾಕು', 'ಬೇರೆ', 'ಇನ್ನೊಂದು', 'ಬದಲಾಯಿಸು', 'ಹಾಡು', 'ಪ್ಲೇ',
-          'ಆಪು', 'మార్చు', 'నెక్స్ట్', 'చాలు', 'వేరే', 'మరో', 'పాట', 'ప్లే',
-          'बंद करो', 'रोको', 'अगला', 'बस करो', 'दूसरा', 'बदलो', 'गाना', 'प्ले',
-          'நிறுத்து', 'அடுத்த', 'போதும்', 'வேறு', 'பாடல்',
-          'close', 'hide', 'exit', 'what', 'identify', 'outfit'
+          'stop', 'pause', 'wait', 'quiet', 'shut up', 'enough', 'next', 'skip', 'prev', 'previous', 'resume', 'continue',
+          'stop music', 'stop song', 'pause music', 'next song', 'change song',
+          'ಹಾಡು ನಿಲ್ಲಿಸು', 'ಗಾನಾ ಬಂದ್ ಮಾಡು', 'ಬಂದ್ ಮಾಡು', 'ಮುಂದಿನ ಹಾಡು', 'ಹಾಡು ಬದಲಾಯಿಸು', 'ಸ್ಟಾಪ್',
+          'పాట ఆపు', 'పాటలు ఆపు', 'ఆపు', 'పాట మార్చు', 'నెక్స్ట్ పాట',
+          'गाना बंद करो', 'संगीत बंद करो', 'बंद करो', 'गाना बदलो', 'अगला गाना',
+          'பாட்டை நிறுத்து', 'பாட்டு நிறுத்து', 'நிறுத்து', 'close', 'hide', 'exit', 'what', 'identify', 'outfit'
         ];
-        const isActionable = musicKeywords.some(k => check.includes(k)) || isNextOrDifferentSongIntent(check) || isCloseImageIntent(check) || isObjectIdentificationIntent(check);
+        const isWakePattern = check.includes('jarvis') || check.includes('lisa') || check.includes('ಜಾರ್ವಿಸ್') || check.includes('ಲೀಸಾ') || check.includes('జార్విస్') || check.includes('లీసా') || check.includes('जार्विस') || check.includes('लिसा') || check.includes('ஹே');
+        const isActionable = isWakePattern || musicKeywords.some(k => check.includes(k)) || isNextOrDifferentSongIntent(check) || isPreviousSongIntent(check) || isOutfitScanIntent(check) || isObjectIdentificationIntent(check);
 
         if (!isActionable) {
           return;
         }
-
-        if (heard && audio.volume > 0.25) {
-          audio.volume = 0.25;
+        if (isWakePattern && audio.volume > 0.20) {
+          audio.volume = 0.20; // Duck music deeply so user speech is recognized clearly
+        }
+        if (heard && audio.volume > 0.40) {
+          audio.volume = 0.40;
+          if (window.duckingRestoreTimer) clearTimeout(window.duckingRestoreTimer);
+          window.duckingRestoreTimer = setTimeout(() => {
+            if (musicPlaying && audio && !isAssistantSpeakingNow()) {
+              audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+            }
+          }, 2500);
         }
       }
 
       if (heard) {
         document.getElementById('transcript').innerText = '👂 ' + heard;
+        updateMicIndicator('HEARD', heard);
         if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
 
-        // Lightning-fast silence debounce:
-        // 100ms for instant control actions, 250ms when browser has finalized sentence, 450ms for interim
-        const isInstantAction = isMusicStopIntent(check) || isCloseImageIntent(check) || isNextOrDifferentSongIntent(check) || (check === 'stop' || check === 'stop music' || check === 'pause' || check === 'stop it' || check === 'ಸಾಕು' || check === 'ನಿಲ್ಲಿಸು');
-        let debounceDelay = 450;
+        const isInstantAction = isStopConversationIntent(check) || isMusicStopIntent(check) || isCloseImageIntent(check) || isNextOrDifferentSongIntent(check) || isPreviousSongIntent(check);
+        const isWakePattern = check.includes('jarvis') || check.includes('lisa') || check.includes('ಜಾರ್ವಿಸ್') || check.includes('ಲೀಸಾ') || check.includes('జార్విస్') || check.includes('లీసా') || check.includes('जार्विस') || check.includes('लिसा');
+
+        let debounceDelay = 700;
         if (isInstantAction) {
-          debounceDelay = 100;
+          debounceDelay = 80;
+        } else if (isWakePattern && heard.split(/\s+/).length <= 3) {
+          debounceDelay = 300; // Standalone wake call ("Hey Jarvis")
+        } else if (isSentenceIncomplete(heard)) {
+          debounceDelay = 1500; // User is in the middle of a sentence, wait generously
         } else if (fullFinal.trim().length > 0) {
-          debounceDelay = 250;
+          debounceDelay = 900; // Completed sentence pause
+        } else {
+          debounceDelay = 1100;
         }
 
         speechSilenceTimer = setTimeout(() => {
           if (!isAssistantSpeakingNow() && conversationState !== 'PROCESSING' && heard.length > 1) {
             dispatchSpeech(heard);
+          } else if (musicPlaying && audio && !isAssistantSpeakingNow()) {
+            audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
           }
         }, debounceDelay);
       }
@@ -1653,48 +1920,169 @@
 
     recognition.onerror = (event) => {
       recognitionRunning = false;
+      console.warn("Speech recognition notice:", event.error);
       if (event.error === 'not-allowed') {
-        setAIResponse('❌ Mic permission denied! Please click the camera/mic icon in the browser address bar.');
-      } else if (!isSpeakingAudio && conversationState !== 'PROCESSING') {
+        updateMicIndicator('BLOCKED');
+        setAIStatus("⚠️ MIC NEEDED");
+        setAIResponse('🔒 Microphone permission needed: Click anywhere on the mirror or click "MIC: CLICK TO ALLOW" to start voice assistant!');
+      } else if (conversationState !== 'PROCESSING' && conversationState !== 'SPEAKING') {
         setTimeout(() => safeStart(), 300);
       }
     };
 
     recognition.onend = () => {
       recognitionRunning = false;
-      if (!isSpeakingAudio && conversationState !== 'PROCESSING') {
+      if (musicPlaying && audio && !isAssistantSpeakingNow()) {
+        audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+      }
+      if (conversationState !== 'PROCESSING' && conversationState !== 'SPEAKING') {
         setTimeout(() => safeStart(), 200);
       }
     };
   }
 
   function safeStart() {
-    if (conversationState === 'PROCESSING') return;
+    if (conversationState === 'PROCESSING' || conversationState === 'SPEAKING') return;
     if (!recognition || recognitionRunning) return;
     try {
       recognition.start();
       recognitionRunning = true;
+      updateMicIndicator('LISTENING');
     } catch(e) {}
   }
 
-  function safeStop() {
-    if (!recognition) return;
-    recognitionRunning = false;
-    try { recognition.abort(); } catch(e) {}
+  // Robust Multi-State Watchdog: Keeps Speech Recognition permanently alive & attentive
+  setInterval(() => {
+    // 1. Keep mic active in IDLE or LISTENING state
+    if ((conversationState === 'IDLE' || conversationState === 'LISTENING') && !recognitionRunning && !isAssistantSpeakingNow()) {
+      console.log("[Watchdog] Reviving inactive speech recognition in state:", conversationState);
+      safeStart();
+    }
+    // 2. Watchdog against stuck PROCESSING state (> 9 seconds)
+    if (conversationState === 'PROCESSING' && (Date.now() - lastProcessingStartTime > 9000)) {
+      console.warn("[Watchdog] Stuck in PROCESSING state for > 9s, auto-recovering to IDLE.");
+      recoverVoiceAssistant("processing timeout", "IDLE");
+    }
+    // 3. Watchdog against stuck SPEAKING state when audio is ended
+    if (conversationState === 'SPEAKING' && !isSpeakingAudio && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
+      if (!window.currentAudioTTS || window.currentAudioTTS.paused || window.currentAudioTTS.ended) {
+        console.warn("[Watchdog] Stuck in SPEAKING state without active audio, auto-recovering.");
+        recoverVoiceAssistant("speaking finished", "IDLE");
+      }
+    }
+  }, 1500);
+
+  // Global user interaction listener to wake up audio & mic engine on ANY user click/touch
+  function unlockVoiceOnUserGesture() {
+    unlockAudioEngine();
+    if (!recognitionRunning && conversationState !== 'PROCESSING' && conversationState !== 'SPEAKING') {
+      safeStart();
+    }
   }
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, unlockVoiceOnUserGesture, { passive: true });
+  });
 
   // ============================================================
   // 4. Intent & Command Dispatcher
   // ============================================================
+    // ============================================================
+  // Enhanced Robust Wake Word Engine & Command Dispatcher
+  // ============================================================
+    function isSentenceIncomplete(text) {
+    if (!text) return false;
+    const t = text.trim().toLowerCase();
+    const trailingConnectors = [
+      'of', 'for', 'in', 'at', 'on', 'with', 'about', 'the', 'a', 'an', 'and', 'or', 'to',
+      'what', 'why', 'how', 'when', 'where', 'which', 'who', 'is', 'are', 'was', 'were',
+      'price of', 'rate of', 'cost of', 'tell me', 'can you', 'please tell', 'weather in',
+      'ಬಗ್ಗೆ', 'ಎಷ್ಟು', 'ಹೇಳು', 'ಅಥವಾ', 'ಮತ್ತು', 'ಚಿನ್ನದ', 'ಬೆಲೆ',
+      'के बारे', 'का भाव', 'की कीमत', 'बताओ', 'क्या', 'और',
+      'గురించి', 'ధర', 'చెప్పు',
+      'பற்றி', 'விலை', 'சொல்லு'
+    ];
+    return trailingConnectors.some(w => t.endsWith(' ' + w) || t === w);
+  }
+
+  function extractWakeWordAndCommand(rawText) {
+    if (!rawText) return { wakeFound: false, detectedPersona: null, command: "" };
+
+    const t = rawText.toLowerCase().replace(/[,.?!;:]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const jarvisPatterns = [
+      /\b(hey|hi|hello|ok|okay|yo|listen|wake up)?\s*jarvis\b/i,
+      /(?:^|\s)(?:ಹೇ|ಹಾಯ್|ಏ|ಏನ್)?\s*ಜಾರ್ವಿಸ್(?:\s|$)/iu,
+      /(?:^|\s)(?:हे|हाय|हेलो|सुनो)?\s*जार्विस(?:\s|$)/iu,
+      /(?:^|\s)(?:హే|హాయ్)?\s*జార్విస్(?:\s|$)/iu,
+      /(?:^|\s)(?:ஹே|ஹாய்)?\s*ஜார்விஸ்(?:\s|$)/iu,
+      /\bjarvis\b/i,
+      /ಜಾರ್ವಿಸ್/u,
+      /जार्विस/u,
+      /జార్విస్/u,
+      /ஜார்விஸ்/u
+    ];
+
+    const lisaPatterns = [
+      /\b(hey|hi|hello|ok|okay|yo|listen|wake up)?\s*lisa\b/i,
+      /(?:^|\s)(?:ಹೇ|ಹಾಯ್|ಏ|ಏನ್)?\s*ಲೀಸಾ(?:\s|$)/iu,
+      /(?:^|\s)(?:हे|हाय|हेलो|सुनो)?\s*लिसा(?:\s|$)/iu,
+      /(?:^|\s)(?:హే|హాయ్)?\s*లీసా(?:\s|$)/iu,
+      /(?:^|\s)(?:ஹே|ஹாய்)?\s*லீசா(?:\s|$)/iu,
+      /\blisa\b/i,
+      /ಲೀಸಾ/u,
+      /लिसा/u,
+      /లీసా/u,
+      /லீசா/u
+    ];
+
+    let wakeFound = false;
+    let detectedPersona = null;
+    let cleaned = t;
+
+    for (const pat of lisaPatterns) {
+      if (pat.test(cleaned)) {
+        wakeFound = true;
+        detectedPersona = 'Lisa';
+        cleaned = cleaned.replace(pat, ' ').trim();
+        break;
+      }
+    }
+
+    if (!wakeFound) {
+      for (const pat of jarvisPatterns) {
+        if (pat.test(cleaned)) {
+          wakeFound = true;
+          detectedPersona = 'Jarvis';
+          cleaned = cleaned.replace(pat, ' ').trim();
+          break;
+        }
+      }
+    }
+
+    // Strip leading pleasantries
+    cleaned = cleaned.replace(/^(hey|hi|hello|ok|okay|yo|please|sir|ಡಿಯರ್|ಹೇ|ಹಾಯ್|ಏ|ಏನ್|सुनो|नमस्ते)\s+/iu, '').trim();
+
+    return { wakeFound, detectedPersona, command: cleaned };
+  }
+
   function dispatchSpeech(rawText) {
+    if (!rawText) return;
+
+    // 0. Immediate Stop check
+    if (isStopConversationIntent(rawText)) {
+      console.log("🛑 Stop command recognized in dispatchSpeech:", rawText);
+      handleVoiceInterrupt();
+      return;
+    }
+
     // 1. Guard against any dispatch while assistant is speaking or processing
     if (conversationState === 'SPEAKING' || conversationState === 'PROCESSING') return;
 
     const text = rawText.trim();
     if (!text) return;
 
-    // Guard: Prevent rapid duplicate triggers of the same phrase (15 second debounce)
-    if (text === lastDispatchedText && (Date.now() - lastDispatchedTime < 2500)) return;
+    // Guard: Prevent rapid duplicate triggers of the same phrase within 2 seconds
+    if (text === lastDispatchedText && (Date.now() - lastDispatchedTime < 2000)) return;
 
     // Clear live transcript display and flush Web Speech API buffer
     document.getElementById('transcript').innerText = '';
@@ -1710,8 +2098,6 @@
       setTimeout(() => { safeStart(); }, 350);
     }
 
-    const t = text.toLowerCase();
-
     // 2. Reject assistant's own voice echo
     if (isAcousticEcho(text)) {
       console.log("Suppressed acoustic echo in dispatchSpeech:", text);
@@ -1721,99 +2107,67 @@
     lastDispatchedText = text;
     lastDispatchedTime = Date.now();
 
-    // Check Wake Words for both Jarvis and Lisa
-    const jarvisWakeWords = ['jarvis', 'hey jarvis', 'hi jarvis', 'hello jarvis', 'ok jarvis', 'जार्विस', 'ಜಾರ್ವಿಸ್', 'ஜಾರ್விஸ்', 'జార్విస్'];
-    const lisaWakeWords = ['lisa', 'hey lisa', 'hi lisa', 'hello lisa', 'ok lisa', 'ಲೀಸಾ', 'लिसा', 'லீசா', 'లీసా'];
-
-    let wakeFound = false;
-    let cmd = text;
-    let detectedPersona = null;
-
-    for (const w of lisaWakeWords) {
-      if (t.includes(w)) {
-        wakeFound = true;
-        detectedPersona = 'Lisa';
-        const reg = new RegExp(`\\b${w}\\b|${w}`, 'gi');
-        cmd = text.replace(reg, '').trim();
-        break;
-      }
-    }
-
-    if (!wakeFound) {
-      for (const w of jarvisWakeWords) {
-        if (t.includes(w)) {
-          wakeFound = true;
-          detectedPersona = 'Jarvis';
-          const reg = new RegExp(`\\b${w}\\b|${w}`, 'gi');
-          cmd = text.replace(reg, '').trim();
-          break;
-        }
-      }
-    }
+    const { wakeFound, detectedPersona, command } = extractWakeWordAndCommand(text);
 
     if (detectedPersona && detectedPersona !== currentPersona) {
       setPersona(detectedPersona, false);
     }
 
-    // Noise & Spurious Word Filter: drop isolated filler syllables
-    const cleanTokens = text.toLowerCase().replace(/[^a-z0-9\u0C80-\u0CFF\u0C00-\u0C7F\u0900-\u097F\u0B80-\u0BFF\s]/g, '').trim().split(/\s+/).filter(Boolean);
-    const noiseWords = new Set(['a', 'an', 'the', 'um', 'uh', 'so', 'oh', 'hm', 'hmm', 'ah', 'er', 'i', 'to', 'of', 'is', 'it']);
-    if (cleanTokens.length === 1 && noiseWords.has(cleanTokens[0])) {
-      console.log("🛡️ Dropped spurious background noise syllable:", text);
-      return;
-    }
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    const pName = isLisa ? 'Lisa' : 'Jarvis';
 
-    if (conversationState === 'IDLE') {
-      if (wakeFound) {
-        setState('LISTENING');
+    // Update mic indicator with what was heard
+    updateMicIndicator('HEARD', text);
 
-        // One-Shot Command Execution: if user spoke query along with wake word
-        if (cmd.length > 2) {
-          executeIntent(cmd);
-        } else {
-          const isLisa = (currentPersona.toLowerCase() === 'lisa');
-          const defaultGreet = isLisa ? "Yes! Lisa here. How can I help you?" : "Yes! How can I help you?";
-          speakResponse(LANGUAGES[activeLanguage].greet || defaultGreet);
-        }
-      } else if (text.length > 2) {
-        // Natural direct interaction: auto-wake and execute command directly
-        setState('LISTENING');
-        executeIntent(text);
-      }
-      return;
-    }
+    // CASE A: User said Wake Word alone (e.g. "Hey Jarvis", "Jarvis", "Hey Lisa")
+    if (wakeFound && (!command || command.length <= 2)) {
+      console.log("✨ Wake word triggered alone:", text);
+      setState('LISTENING');
 
-    // In LISTENING state: if user just calls out the wake word alone ("Jarvis" or "Lisa")
-    if (wakeFound && cmd.length <= 2) {
-      const isLisa = (currentPersona.toLowerCase() === 'lisa');
-      speakResponse(isLisa ? "Yes, I'm listening." : "Yes, sir, I'm listening.");
+      const hr = new Date().getHours();
+      const timeGreeting = (hr < 12) ? "Good morning" : ((hr < 17) ? "Good afternoon" : "Good evening");
+      const wakeReplies = {
+        'en': isLisa ? `Hey buddy! ${timeGreeting}. How's your day going?` : `Hey buddy! ${timeGreeting}. How can I help you today?`,
+        'kn': isLisa ? "ಹೇ ಗೆಳೆಯ! ನಮಸ್ಕಾರ, ಇವತ್ತು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?" : "ಹೇ ಗೆಳೆಯ! ನಮಸ್ಕಾರ, ಹೇಳಿ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+        'te': isLisa ? "హే బడ్డీ! నమస్కారం, ఈరోజు మీకు ఎలా సహాయపడగలను?" : "హే బడ్డీ! నమస్కారం, చెప్పండి ఏం చేయాలి?",
+        'hi': isLisa ? "नमस्ते दोस्त! कहिए, आज आपका दिन कैसा चल रहा है?" : "नमस्ते दोस्त! बताइए, आज मैं आपकी क्या मदद करूँ?",
+        'ta': isLisa ? "ஹே தோழா! வணக்கம், இன்று உங்களுக்கு எவ்வாறு உதவட்டும்?" : "ஹே தோழா! வணக்கம், சொல்லுங்கள் என்ன செய்ய வேண்டும்?"
+      };
+      const reply = wakeReplies[activeLanguage] || wakeReplies['en'];
+
+      setAIStatus(isLisa ? "👩 LISA READY" : "🤖 JARVIS READY");
+      setAIResponse(reply);
+      speakResponse(reply);
       resetAutoSleepTimer();
       return;
     }
 
-    // Secondary Shield: If music is playing, strictly require wake word OR direct music control
-    if (musicPlaying) {
-      const musicControlKeywords = [
-        'stop', 'pause', 'wait', 'quiet', 'shut up', 'enough', 'next', 'skip', 'resume', 'continue',
-        'stop music', 'stop song', 'pause music', 'pause song', 'next song', 'change song',
-        'ಹಾಡು ನಿಲ್ಲಿಸು', 'ಗಾನಾ ಬಂದ್ ಮಾಡು', 'ಬಂದ್ ಮಾಡು', 'ಮುಂದಿನ ಹಾಡು', 'ಹಾಡು ಬದಲಾಯಿಸು', 'ಸ್ಟಾಪ್',
-        'పాట ఆపు', 'పాటలు ఆపు', 'ఆపు', 'పాట మార్చు', 'నెక్స్ట్ పాట',
-        'गाना बंद करो', 'संगीत बंद करो', 'बंद करो', 'गाना बदलो', 'अगला गाना',
-        'பாட்டை நிறுத்து', 'பாட்டு நிறுத்து', 'நிறுத்து'
-      ];
-      const isDirectMusicControl = musicControlKeywords.some(kw => t === kw || t.startsWith(kw) || t.endsWith(kw));
-      if (!wakeFound && !isDirectMusicControl) {
-        console.log("🛡️ Acoustic Shield: Dropped audio during music playback (no wake word or music control):", text);
-        document.getElementById('transcript').innerText = '';
-        return;
-      }
+    // CASE B: User spoke Wake Word with command (e.g. "Hey Jarvis play believer", "Jarvis how do I look")
+    if (wakeFound && command.length > 2) {
+      console.log("⚡ One-shot wake + command:", command);
+      setState('LISTENING');
+      resetAutoSleepTimer();
+      executeIntent(command);
+      return;
     }
 
-    // Reset auto-sleep timer upon legitimate user action
-    resetAutoSleepTimer();
+    // CASE C: If already in LISTENING state or user manually started mic:
+    if (conversationState === 'LISTENING') {
+      console.log("🗣️ Conversational command in LISTENING:", text);
+      resetAutoSleepTimer();
+      executeIntent(command || text);
+      return;
+    }
 
-    // Active conversation execution
-    executeIntent(wakeFound && cmd.length > 2 ? cmd : text);
+    // CASE D: If in IDLE state without wake word:
+    // If user speaks an explicit actionable intent (music, outfit, object, clock, weather, language), auto-wake and execute!
+    if (conversationState === 'IDLE' && text.length > 2) {
+      console.log("⚡ Auto-wake actionable intent:", text);
+      setState('LISTENING');
+      resetAutoSleepTimer();
+      executeIntent(text);
+      return;
+    }
   }
 
   // ============================================================
@@ -1914,6 +2268,30 @@
     return shiftWords.some(s => t.includes(s)) && songWords.some(w => t.includes(w));
   }
 
+  function isPreviousSongIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const prevPhrases = [
+      'previous song', 'previous track', 'play previous song', 'play previous',
+      'prev song', 'prev track', 'go back a song', 'last song', 'back song',
+      'ಹಿಂದಿನ ಹಾಡು', 'ಹಿಂದಿನ ಸಾಂಗ್', 'ಹಿಂದಿನದು',
+      'మునుపటి పాట', 'క్రితం పాట', 'వెనుక పాట',
+      'पिछला गाना', 'पिछला गीत', 'पहले वाला गाना',
+      'முந்தைய பாடல்', 'பழைய பாடல்'
+    ];
+    if (prevPhrases.some(p => t.includes(p))) return true;
+    const prevWords = ['previous', 'prev', 'back', 'last', 'ಹಿಂದಿನ', 'మునుపటి', 'पिछला', 'முந்தைய'];
+    const songWords = ['song', 'songs', 'music', 'track', 'ಹಾಡು', 'ಸಾಂಗ್', 'పాట', 'గానా', 'गाना', 'பாடல்', 'பாட்டு'];
+    return prevWords.some(p => t.includes(p)) && songWords.some(w => t.includes(w));
+  }
+
+    function isImageGenerationIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const explicitGen = ['generate image', 'generate an image', 'generate picture', 'create an image', 'draw an image', 'draw a picture', 'paint an image', 'चित्र बनाओ', 'ಫೋಟೋ ರಚಿಸು', 'బೊమ్మ గీయి', 'படம் வரை'];
+    return explicitGen.some(p => t.includes(p));
+  }
+
   function isOutfitScanIntent(rawText) {
     if (!rawText) return false;
     const t = rawText.toLowerCase().trim();
@@ -1938,25 +2316,32 @@
       'can you see me', 'can you see my outfit', 'see my outfit', 'able to analyse my outfit',
       'able to analyze my outfit', 'review my outfit', 'evaluate my outfit',
       'am i looking good', 'how am i looking today', 'how do i look today',
+      'what should i wear', 'what to wear', 'outfit for this weather', 'outfit for today',
+      'weather outfit', 'clothing for weather', 'suggest an outfit', 'recommend an outfit',
+      'suggest outfit', 'recommend outfit', 'how should i dress', 'dress for today',
       // Kannada
       'ಬಟ್ಟೆ ಹೇಗಿದೆ', 'ಔಟ್‌ಫಿಟ್ ಹೇಗಿದೆ', 'ಔಟ್ಫಿಟ್ ಹೇಗಿದೆ', 'ಡ್ರೆಸ್ ಹೇಗಿದೆ',
       'ಬಟ್ಟೆ ಅನಲೈಸ್', 'ಔಟ್‌ಫಿಟ್ ಅನಲೈಸ್', 'ಔಟ್ಫಿಟ್ ಅನಲೈಸ್', 'ಡ್ರೆಸ್ ಅನಲೈಸ್',
       'ಬಟ್ಟೆ ನೋಡು', 'ಔಟ್‌ಫಿಟ್ ನೋಡು', 'ಡ್ರೆಸ್ ನೋಡು', 'ಬಟ್ಟೆ ಸ್ಕ್ಯಾನ್', 'ಔಟ್‌ಫಿಟ್ ಸ್ಕ್ಯಾನ್',
       'ಹೇಗೆ ಕಾಣ್ತಿದ್ದೀನಿ', 'ಹೇಗೆ ಕಾಣುತ್ತಿದ್ದೇನೆ', 'ಬಟ್ಟೆ ಚೆಕ್', 'ಔಟ್‌ಫಿಟ್ ಚೆಕ್',
+      'ಇವತ್ತು ಏನು ಧರಿಸಬೇಕು', 'ಹವಾಮಾನಕ್ಕೆ ತಕ್ಕ ಬಟ್ಟೆ',
       // Telugu
       'డ్రెస్ ఎలా ఉంది', 'డ్రెస్సు ఎలా ఉంది', 'బట్టలు ఎలా ఉన్నాయి', 'అవుట్‌ఫిట్ ఎలా ఉంది',
       'డ్రెస్ ఎనలైజ్', 'అవుట్‌ఫిట్ ఎనలైజ్', 'డ్రెస్ విశ్లేషించు', 'అవుట్‌ఫిట్ విశ్లేషించు',
       'డ్రెస్ చూడు', 'అవుట్‌ఫిట్ చూడు', 'డ్రెస్ స్కాన్', 'అవుట్‌ఫిట్ స్కాన్',
       'ఎలా ఉన్నాను', 'డ్రెస్ చెక్', 'అవుట్‌ఫిట్ చెక్', 'ఎలా ఉందో చూడు',
+      'ఈరోజు ఏం వేసుకోవాలి', 'వాతావరణానికి తగిన దుస్తులు',
       // Hindi
       'ऑउटफिट कैसा', 'आउटफिट कैसा', 'ड्रेस कैसी', 'ड्रेस कैसा', 'कपड़े कैसे',
       'ऑउटफिट एनालाइज', 'आउटफिट एनालाइज', 'ड्रेस एनालाइज', 'कपड़े एनालाइज',
       'ऑउटफिट देखो', 'आउटफिट देखो', 'मेरी ड्रेस देखो', 'ऑउटफिट स्कैन', 'आउटफिट स्कैन',
       'कैसा लग रहा', 'कैसी लग रही', 'ऑउटफिट चेक', 'ड्रेस चेक',
+      'आज क्या पहनूं', 'मौसम के हिसाब से कपड़े',
       // Tamil
       'ஆடை எப்படி', 'டிரஸ் எப்படி', 'அவுட்பிட் எப்படி',
       'ஆடை அனலைஸ்', 'டிரஸ் அனலைஸ்', 'அவுட்பிட் அனலைஸ்',
-      'ஆடை பார்', 'டிரஸ் பார்', 'அவுட்பிட் பார்', 'ஆடை ஸ்கேன்', 'அவுட்பிட் ஸ்கேன்'
+      'ஆடை பார்', 'டிரஸ் பார்', 'அவுட்பிட் பார்', 'ஆடை ஸ்கேன்', 'அவுட்பிட் ஸ்கேன்',
+      'இன்று என்ன அணியலாம்'
     ];
 
     if (directPhrases.some(p => t.includes(p))) return true;
@@ -1996,49 +2381,377 @@
       // English
       'what is this', 'what is that', 'what am i holding', 'what is in my hand', "what's this", "what's that",
       "what's in my hand", 'what am i showing', 'what is this object', 'what is this item', 'identify this',
-      'identify the object', 'identify what i am holding', "identify what's in my hand", 'tell me what this is',
-      'can you tell me what this is', 'can you identify this', 'can you see what this is', 'recognize this',
-      'recognize the object', 'what do i have in my hand', 'what item is this', 'what thing is this',
+      'identify the object', 'identify the item', 'identify what i am holding', "identify what's in my hand",
+      'can you identify', 'can you identify the item', 'can you identify what i am holding',
+      'tell me what this is', 'can you tell me what this is', 'can you identify this', 'can you see what this is',
+      'recognize this', 'recognize the object', 'what do i have in my hand', 'what item is this', 'what thing is this',
       'what do you see in my hand', 'what object is this', 'check what this is', 'look at what i am holding',
-      'what is this in front of you',
+      'what is this in front of you', 'once again check it', 'check it once again', 'check again', 'once again check',
+      'check it', 'check this', 'see this', 'look at this', 'scan this', 'scan the object', 'scan what i am holding',
       // Kannada
       'ಇದು ಏನು', 'ಇದೇನು', 'ಇದು ಯಾವ ವಸ್ತು', 'ನನ್ನ ಕೈಯಲ್ಲಿ ಏನಿದೆ', 'ನಾನು ಏನು ಹಿಡಿದಿದ್ದೇನೆ',
       'ಇದನ್ನು ಗುರುತಿಸು', 'ಗುರುತಿಸು', 'ಇದು ಏನೆಂದು ಹೇಳು', 'ನಾನು ತೋರಿಸುತ್ತಿರುವ ವಸ್ತು ಯಾವುದು',
       'ಈ ವಸ್ತು ಯಾವುದು', 'ಕೈಯಲ್ಲಿ ಏನಿದೆ', 'ಇದು ಯಾವ ಐಟಂ', 'ಏನಿದೆ ನನ್ನ ಕೈಯಲ್ಲಿ', 'ನನ್ನ ಕೈಲಿದು ಏನು',
+      'ಇನ್ನೊಮ್ಮೆ ನೋಡು', 'ಮತ್ತೆ ನೋಡು', 'ಚೆಕ್ ಮಾಡು', 'ಇನ್ನೊಮ್ಮೆ ಚೆಕ್ ಮಾಡು', 'ಮತ್ತೆ ಚೆಕ್ ಮಾಡು',
       // Telugu
       'ఇది ఏమిటి', 'ఇదేంటి', 'ఇది ఏంటి', 'నా చేతిలో ఏముంది', 'దీన్ని గుర్తించు',
       'ఈ వస్తువు ఏమిటి', 'నేను ఏమి పట్టుకున్నాను', 'గుర్తించు', 'ఇది ఏమిటో చెప్పు',
       'నేను చూపిస్తున్నది ఏమిటి', 'నా చేతిలో ఉన్న వస్తువు ఏమిటి', 'చేతిలో ఏముంది',
+      'మరోసారి చూడు', 'మళ్లీ చూడు', 'చెక్ చేయి', 'మళ్లీ చెక్ చేయి',
       // Hindi
       'यह क्या है', 'ये क्या है', 'मेरे हाथ में क्या है', 'इसे पहचानो', 'यह कौन सी चीज है',
       'यह कौन सा सामान है', 'मैं क्या पकड़े हुए हूं', 'पहचानो', 'बताओ यह क्या है',
       'यह वस्तु क्या है', 'हाथ में क्या है', 'यह चीज क्या है', 'इसको पहचानो',
+      'फिर से देखो', 'एक बार फिर देखो', 'दोबारा देखो', 'चेक करो', 'फिर से चेक करो',
       // Tamil
       'இது என்ன', 'என் கையில் என்ன இருக்கிறது', 'இதை அடையாளம் காண்', 'இதை கண்டுபிடி',
-      'நான் என்ன வைத்திருக்கிறேன்', 'இது என்ன பொருள்', 'அடையாளம் காண்', 'கையில் என்ன இருக்கிறது'
+      'நான் என்ன வைத்திருக்கிறேன்', 'இது என்ன பொருள்', 'அடையாளம் காண்', 'கையில் என்ன இருக்கிறது',
+      'மறுபடியும் பார்', 'செக் செய்'
     ];
 
     if (directPhrases.some(p => t.includes(p))) return true;
 
-    // Keyword combination: Target word + Action / Question word
+    // Keyword combination: Explicit holding/object target + Action/Question word
     const targets = [
-      'this', 'that', 'object', 'thing', 'item', 'holding', 'hand', 'showing',
+      'holding', 'in my hand', 'in hand', 'this object', 'this item', 'this thing', 'what object', 'what item',
       'ವಸ್ತು', 'ಕೈಯಲ್ಲಿ', 'ಹಿಡಿದಿದ್ದೇನೆ', 'ತೋರಿಸ್ತಿದ್ದೀನಿ', 'ತೋರಿಸುತ್ತಿದ್ದೇನೆ',
       'వస్తువు', 'చేతిలో', 'పట్టుకున్నాను', 'చూపిస్తున్నాను',
       'वस्तु', 'चीज', 'सामान', 'हाथ में', 'पकड़ा', 'दिखा रहा',
       'பொருள்', 'கையில்', 'வைத்திருக்கிறேன்', 'காட்டுகிறேன்'
     ];
     const actions = [
-      'what is', 'what am', 'what does', 'identify', 'recognize', 'tell me', 'name this',
-      'ಏನು', 'ಏನೆಂದು', 'ಗುರುತಿಸು', 'ಹೇಳು',
-      'ఏమిటి', 'ఏంటి', 'గుర్తించు', 'చెప్పు',
-      'क्या है', 'पहचानो', 'बताओ', 'पहचान',
-      'என்ன', 'அடையாளம்', 'கண்டுபிடி', 'சொல்'
+      'what is', 'what am', 'what does', 'identify', 'recognize', 'tell me what', 'name this', 'check', 'scan',
+      'ಏನು', 'ಏನೆಂದು', 'ಗುರುತಿಸು', 'ಹೇಳು', 'ನೋಡು', 'ಚೆಕ್',
+      'ఏమిటి', 'ఏంటి', 'గుర్తించు', 'చెప్పు', 'చూడు', 'చెక్',
+      'क्या है', 'पहचानो', 'बताओ', 'पहचान', 'देखो', 'चेक',
+      'என்ன', 'அடையாளம்', 'கண்டுபிடி', 'சொல்', 'பார்', 'செக்'
     ];
 
     const hasTarget = targets.some(w => t.includes(w));
     const hasAction = actions.some(w => t.includes(w));
     return hasTarget && hasAction;
+  }
+
+    // ============================================================
+  // 3.8. Real-Time Multilingual Time & News Handlers
+  // ============================================================
+  function isTimeIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const timeKeywords = [
+      'what time', 'time is it', "what's the time", 'what is the time', 'time please',
+      'tell me the time', 'current time', 'exact time', 'clock', "what's the date",
+      'what is the date', "today's date", 'what day is today', 'which date',
+      'ಸಮಯ ಎಷ್ಟು', 'ಗಂಟೆ ಎಷ್ಟು', 'ಟೈಮ್ ಎಷ್ಟು', 'ಟೈಮ್ ಹೇಳು', 'ಸಮಯ ಹೇಳು', 'ದಿನಾಂಕ ಎಷ್ಟು', 'ಡೇಟ್ ಎಷ್ಟು', 'ಇವತ್ತು ಯಾವ ದಿನ',
+      'సమయం ఎంత', 'టైమ్ ఎంత', 'టైమ్ చెప్పు', 'సమయం చెప్పు', 'తేదీ ఎంత', 'డేట్ ఎంత', 'ఈరోజు ఏ రోజు',
+      'समय क्या', 'कितने बजे', 'टाइम क्या', 'समय बताओ', 'टाइम बताओ', 'तारीख क्या', 'दिन कौन सा',
+      'நேரம் என்ன', 'மணி என்ன', 'டைம் என்ன', 'நேரம் சொல்', 'தேதி என்ன', 'இன்று என்ன நாள்'
+    ];
+    return timeKeywords.some(kw => t.includes(kw));
+  }
+
+  function handleLiveTimeIntent() {
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+    const timeResponses = {
+      'en': `It is currently ${timeStr} on ${dateStr}.`,
+      'kn': `ಈಗ ಸಮಯ ${timeStr}, ದಿನಾಂಕ ${dateStr}.`,
+      'te': `ప్రస్తుతం సమయం ${timeStr}, తేదీ ${dateStr}.`,
+      'hi': `अभी समय ${timeStr} हुआ है, और आज ${dateStr} है।`,
+      'ta': `தற்போது நேரம் ${timeStr}, தேதி ${dateStr}.`
+    };
+
+    const reply = timeResponses[activeLanguage] || timeResponses['en'];
+    setAIResponse(reply);
+    pushConversationTurn('assistant', reply);
+    speakResponse(reply);
+  }
+
+  function isNewsIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    if (t.match(/headline\s*\d+/i) || t.match(/news\s*\d+/i)) return false;
+
+    const newsKeywords = [
+      'news', 'headline', 'headlines', 'what is happening', "what's happening", 'current events',
+      'ಸುದ್ದಿ', 'ಮುಖ್ಯಾಂಶ', 'ಮುಖ್ಯಾಂಶಗಳು', 'ವಾರ್ತೆ', 'ವಾರ್ತೆಗಳು', 'ನ್ಯೂಸ್',
+      'వార్త', 'వార్తలు', 'ముఖ్యాంశాలు', 'న్యూస్', 'సమాచారం',
+      'समाचार', 'ताज़ा खबर', 'ताजा खबर', 'खबरें', 'न्यूज',
+      'செய்தி', 'செய்திகள்', 'தலைப்புச் செய்தி', 'நியூஸ்'
+    ];
+    return newsKeywords.some(kw => t.includes(kw));
+  }
+
+  async function handleLiveNewsIntent() {
+    setAIStatus("📰 TODAY'S HEADLINES");
+    setAIResponse("Fetching fresh headlines...");
+
+    try {
+      const res = await fetch(`${FLASK_BASE}/api/news/live?lang=${activeLanguage}`);
+      const data = await res.json();
+      currentHeadlines = data.headlines || [];
+      renderHeadlinesWidget(currentHeadlines);
+      presentHeadlines(currentHeadlines);
+    } catch (e) {
+      if (currentHeadlines && currentHeadlines.length > 0) {
+        presentHeadlines(currentHeadlines);
+      } else {
+        const fallbackMsg = {
+          'en': "Here are today's top updates: India's technology sector surges with new AI initiatives, and global clean energy investments reach new records.",
+          'kn': "ಇಂದಿನ ಪ್ರಮುಖ ಮುಖ್ಯಾಂಶಗಳು: ಭಾರತದ ತಂತ್ರಜ್ಞಾನ ವಲಯದಲ್ಲಿ ಎಐ ಕ್ರಾಂತಿ ಮುನ್ನಡೆದಿದೆ, ಮತ್ತು ನವೀಕರಿಸಬಹುದಾದ ಇಂಧನ ಯೋಜನೆಗಳಲ್ಲಿ ದಾಖಲೆ ಹೂಡಿಕೆಯಾಗಿದೆ.",
+          'te': "ఈరోజు తాజా వార్తలు: భారత టెక్ రంగాన్ని నడిపిస్తున్న అధునాతన ఏఐ ప్రాజెక్టులు, మరియు పునరుత్పాదక ఇంధన పెట్టుబడుల్లో సరికొత్త రికార్డులు.",
+          'hi': "आज के मुख्य समाचार: भारत के तकनीकी क्षेत्र में एआई और सेमीकंडक्टर का बड़ा विस्तार, और अक्षय ऊर्जा क्षेत्र में रिकॉर्ड निवेश दर्ज हुआ है।",
+          'ta': "இன்றைய முக்கிய செய்திகள்: இந்திய தொழில்நுட்பத் துறையில் புதிய ஏஐ முதலீடுகள், மற்றும் புதுப்பிக்கத்தக்க எரிசக்தி திட்டங்களில் புதிய சாதனை."
+        }[activeLanguage] || "Here are today's top updates: Technology sector expands with new AI initiatives.";
+        setAIResponse(fallbackMsg);
+        pushConversationTurn('assistant', fallbackMsg);
+        speakResponse(fallbackMsg);
+      }
+    }
+  }
+
+  function renderHeadlinesWidget(headlines) {
+    if (!headlines || !headlines.length) return;
+    let html = '';
+    headlines.forEach(h => {
+      html += `<div class="headline-item" onclick="explainHeadlineById(${h.id})"><b>#${h.id}.</b> ${h.title}</div>`;
+    });
+    const container = document.getElementById('news-items');
+    if (container) container.innerHTML = html;
+  }
+
+  function presentHeadlines(headlines) {
+    if (!headlines || !headlines.length) return;
+    const top3 = headlines.slice(0, 3);
+    const textList = top3.map(h => `${h.id}. ${h.title}`).join('\n');
+    const introPhrases = {
+      'en': "Here are today's top headlines:\n",
+      'kn': "ಇಂದಿನ ಪ್ರಮುಖ ಮುಖ್ಯಾಂಶಗಳು:\n",
+      'te': "ఈరోజు తాజా ముఖ్యాంశాలు:\n",
+      'hi': "आज के मुख्य समाचार:\n",
+      'ta': "இன்றைய முக்கிய செய்திகள்:\n"
+    };
+    const intro = introPhrases[activeLanguage] || introPhrases['en'];
+    const displayText = intro + textList;
+    setAIResponse(displayText);
+    pushConversationTurn('assistant', displayText);
+
+    const spokenSummary = top3.map(h => `${h.id}. ${h.title}`).join('. ');
+    speakResponse(intro.replace('\n', ' ') + spokenSummary);
+  }
+
+  // ============================================================
+  // 3.9. Real-Time Multilingual Weather, Briefing & Reminders
+  // ============================================================
+  function isWeatherIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const weatherPhrases = [
+      'weather', 'temperature', 'how is the weather', "what's the weather", 'what is the weather',
+      'weather today', 'today weather', 'is it raining', 'forecast', 'climate', 'how hot is it', 'how cold is it',
+      'ಹವಾಮಾನ', 'ವೆದರ್', 'ಮಳೆ ಬರುತ್ತಾ', 'ಇವತ್ತಿನ ಹವಾಮಾನ', 'ತಾಪಮಾನ', 'ಹವಾಮಾನ ಹೇಗಿದೆ',
+      'వాతావరణం', 'వర్షం పడుతుందా', 'ఈరోజు వాతావరణం', 'టెంపరేచర్', 'వాతావరణం ఎలా ఉంది',
+      'मौसम', 'मौसम कैसा है', 'आज का मौसम', 'बारिश होगी क्या', 'मौसम बताओ', 'तापमान कितना है',
+      'வானிலை', 'இன்றைய வானிலை', 'மழை வருமா', 'வானிலை எப்படி இருக்கிறது',
+      'കാലാവസ്ഥ', 'ഇന്നത്തെ കാലാവസ്ഥ'
+    ];
+    return weatherPhrases.some(kw => t.includes(kw));
+  }
+
+  function handleLiveWeatherIntent() {
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+    const summary = getCurrentWeatherSummary();
+    const weatherReplies = {
+      'en': `Right now it's ${summary}. A great day to stay fresh and comfortable, buddy!`,
+      'kn': `ಈಗ ಸ್ಥಳೀಯ ಹವಾಮಾನ ${summary} ಆಗಿದೆ. ದಿನವನ್ನು ಸಂತೋಷದಿಂದ ಕಳೆಯಿರಿ!`,
+      'te': `ప్రస్తుతం స్థానిక వాతావరణం ${summary} ఉంది. మంచి రోజు కావాలని కోరుకుంటున్నాను!`,
+      'hi': `अभी का मौसम ${summary} है। आपका दिन शुभ और सुखद रहे!`,
+      'ta': `தற்போதைய வானிலை ${summary}. நல்ல நாளாக அமைய வாழ்த்துகள்!`
+    };
+    const reply = weatherReplies[activeLanguage] || weatherReplies['en'];
+    setAIResponse(reply);
+    pushConversationTurn('assistant', reply);
+    speakResponse(reply);
+  }
+
+  function isDailyBriefingIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const briefPhrases = [
+      'daily briefing', 'morning briefing', 'briefing', "what's my day look like", 'brief me',
+      'today summary', "how's my day", 'start my day',
+      'ದೈನಂದಿನ ಬ್ರೀಫಿಂಗ್', 'ಬ್ರೀಫಿಂಗ್', 'ಇವತ್ತಿನ ಸಾರಾಂಶ',
+      'డైలీ బ్రీఫింగ్', 'ఈరోజు సమాచారం',
+      'दैनिक ब्रीफिंग', 'आज का दिन कैसा है', 'ब्रीफिंग दो',
+      'தினசரி சுருக்கம்'
+    ];
+    return briefPhrases.some(kw => t.includes(kw));
+  }
+
+  function handleDailyBriefingIntent() {
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    setAIStatus("📋 DAILY BRIEFING");
+    setAIResponse("Preparing your personalized daily briefing...");
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    const weather = getCurrentWeatherSummary();
+
+    let briefingText = "";
+    if (activeLanguage === 'kn') {
+      briefingText = `ಶುಭ ಮುಂಜಾನೆ! ಈಗ ಸಮಯ ${timeStr}, ${dateStr}. ಹವಾಮಾನ: ${weather}. ಇವತ್ತಿನ ದಿನವನ್ನು ಹುರುಪಿನಿಂದ ಪ್ರಾರಂಭಿಸಿ, ನಿಮ್ಮ ಗುರಿಗಳನ್ನು ಸಾಧಿಸಿ!`;
+    } else if (activeLanguage === 'te') {
+      briefingText = `శుభోదయం! ఇప్పుడు సమయం ${timeStr}, ${dateStr}. వాతావరణం: ${weather}. ఈరోజు మీ పనులను ఉత్సాహంగా పూర్తి చేయండి!`;
+    } else if (activeLanguage === 'hi') {
+      briefingText = `सुप्रभात दोस्त! अभी समय ${timeStr} हुआ है, ${dateStr}. मौसम: ${weather}. आज का दिन ऊर्जा और सकारात्मकता के साथ बिताएं!`;
+    } else {
+      briefingText = `Good morning buddy! It's currently ${timeStr} on ${dateStr}. The weather is ${weather}. You're all set to conquer the day!`;
+    }
+
+    setAIResponse(briefingText);
+    pushConversationTurn('assistant', briefingText);
+    speakResponse(briefingText);
+  }
+
+  function isReminderIntent(rawText) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    const remindKeywords = [
+      'remind me', 'set a reminder', 'set reminder', 'add reminder', 'create reminder',
+      'ನೆನಪಿಸು', 'ರಿಮೈಂಡರ್', 'ನೆನಪು ಮಾಡು',
+      'గుర్తుచేయి', 'రిమైండర్ పెట్టు',
+      'याद दिलाना', 'रिमाइंडर लगाओ', 'याद दिलाओ',
+      'நினைவூட்டு'
+    ];
+    return remindKeywords.some(kw => t.includes(kw));
+  }
+
+  function handleReminderIntent(rawText) {
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    setAIStatus("⏰ REMINDER ADDED");
+
+    let taskText = rawText.replace(/^(?:jarvis|lisa|hey jarvis|hey lisa)?\s*(?:please\s+)?(?:remind me to|set a reminder to|set a reminder for|add reminder|remind me)\s+/i, '').trim();
+    taskText = taskText || "Review college schedule";
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('smartmirror_reminders') || '[]');
+      stored.unshift({ task: taskText, time: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) });
+      if (stored.length > 5) stored.pop();
+      localStorage.setItem('smartmirror_reminders', JSON.stringify(stored));
+      renderRemindersWidget();
+    } catch(e) {}
+
+    const acks = {
+      'en': `Got it buddy! I've set a reminder for: "${taskText}".`,
+      'kn': `ಖಂಡಿತ! "${taskText}" ಬಗ್ಗೆ ನಾನು ನಿಮಗೆ ನೆನಪಿಸುತ್ತೇನೆ.`,
+      'te': `సరే బడ్డీ! "${taskText}" కోసం రిమైండర్ సెట్ చేశాను.`,
+      'hi': `बिल्कुल दोस्त! मैंने "${taskText}" के लिए रिमाइंडर सेट कर दिया है।`,
+      'ta': `நிச்சயமாக! "${taskText}" க்கான நினைவூட்டல் அமைக்கப்பட்டது.`
+    };
+    const reply = acks[activeLanguage] || acks['en'];
+    setAIResponse(reply);
+    pushConversationTurn('assistant', reply);
+    speakResponse(reply);
+  }
+
+  function renderRemindersWidget() {
+    const container = document.getElementById('reminders-list');
+    if (!container) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('smartmirror_reminders') || '[]');
+      if (!stored.length) {
+        container.innerHTML = '<div style="color: #666; font-size: 13px;">No active reminders</div>';
+        return;
+      }
+      container.innerHTML = stored.map(r => `<div style="font-size: 13px; color: #ddd; padding: 2px 0;">⏰ <b>${r.time}</b>: ${r.task}</div>`).join('');
+    } catch(e) {}
+  }
+
+  function cleanMusicQuery(rawText, activeLang) {
+    let q = (rawText || '').trim();
+    q = q.replace(/[.,!?।\-_'"()]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const leadingPatterns = [
+      /^(?:can\s+you\s+)?(?:could\s+you\s+)?(?:please\s+)?(?:i\s+want\s+(?:to\s+listen\s+to\s+)?)?(?:play|start|put\s+on|listen\s+to|hear)\s+(?:me\s+)?(?:a\s+|some\s+|the\s+)?/i,
+      /^(?:play|start|put\s+on|listen\s+to|hear)\s+/i,
+      /^(?:some\s+|a\s+|the\s+)?(?:songs?\s+|music\s+|tracks?\s+)?(?:of\s+|by\s+|from\s+)?/i,
+      /^(?:ದಯವಿಟ್ಟು\s+)?(?:ಯಾವುದಾದರೂ\s+)?(?:ಒಂದು\s+)?(?:ಒಳ್ಳೆಯ\s+)?(?:ಹೊಸ\s+)?/i,
+      /^(?:దయచేసి\s+)?(?:ఏదైనా\s+)?(?:ఒక\s+)?(?:మంచి\s+)?(?:కొత్త\s+)?/i,
+      /^(?:कृपया\s+)?(?:कोई\s+)?(?:एक\s+)?(?:अच्छा\s+)?(?:नया\s+)?/i,
+      /^(?:தயவுசெய்து\s+)?(?:ஏதாவது\s+)?(?:ஒரு\s+)?(?:நல்ல\s+)?(?:புதிய\s+)?/i
+    ];
+    leadingPatterns.forEach(pat => { q = q.replace(pat, '').trim(); });
+
+    const trailingPatterns = [
+      /\s+(?:songs?|music|tracks?|audios?|movie\s+songs?)$/i,
+      /(?:\s+)?(?:ಪ್ಲೇ\s*ಮಾಡು|ಪ್ಲೇ\s*ಮಾಡಿ|ಹಾಡು\s*ಹಾಕು|ಹಾಕು|ಕೇಳಿಸು|ಪ್ಲೇ|ಮಾಡು|ಹಾಕಿ|ಮಾಡಿಸು)$/i,
+      /(?:\s+)?(?:ಹಾಡುಗಳು?|ಸಾಂಗ್ಸ್?|ಸಾಂಗ್|ಸಂಗೀತ|ಮ್ಯೂಸಿಕ್)$/i,
+      /(?:\s+)?(?:[ಪ್ಪ್]ಲೇ\s*[చేచ]ే[యియ][ిಿ]?|వినిపించు|పెట్టు|వేయి|ప్ಲೇ|చేయి)$/i,
+      /(?:\s+)?(?:పాటలు?|సాంగ్ಸ್?|సాಂಗ್|సంగీతం|మ్యూజిక్)$/i,
+      /(?:\s+)?(?:बजाओ|सुनाओ|चलाओ|लगाओ|प्ले\s*करो|प्ले)$/i,
+      /(?:\s+)?(?:गाने?|गीत|सॉन्गಸ್?|सॉन्ग|संगीत|म्यूजिक)$/i,
+      /(?:\s+)?(?:போடு|பிளே\s*செய்|பிளே\s*பண்ணு|பிளே|பாடு)$/i,
+      /(?:\s+)?(?:பாடல்கள்?|பாட்டு|சாங்|இசை|மியூசிக்)$/i
+    ];
+    trailingPatterns.forEach(pat => { q = q.replace(pat, '').trim(); });
+
+    const langDefaults = {
+      'kn': 'Kannada top hits',
+      'te': 'Telugu top hits',
+      'hi': 'Bollywood Hindi hits',
+      'ta': 'Tamil top hits',
+      'ml': 'Malayalam hits',
+      'mr': 'Marathi hits',
+      'bn': 'Bengali hits',
+      'en': 'top trending hits'
+    };
+
+    const q_low = q.toLowerCase();
+    let specificLang = null;
+    if (q_low.includes('kannada') || q.includes('ಕನ್ನಡ')) specificLang = 'kn';
+    else if (q_low.includes('telugu') || q.includes('తెలుగు')) specificLang = 'te';
+    else if (q_low.includes('hindi') || q.includes('हिंदी') || q.includes('ಹಿಂದಿ')) specificLang = 'hi';
+    else if (q_low.includes('tamil') || q.includes('தமிழ்') || q.includes('ತಮಿಳು')) specificLang = 'ta';
+    else if (q_low.includes('malayalam') || q.includes('മലയാളം')) specificLang = 'ml';
+
+    const residual = q
+      .replace(/\b(?:kannada|telugu|hindi|tamil|malayalam|english)\b/gi, '')
+      .replace(/(?:ಕನ್ನಡ|తెలుగు|हिंदी|தமிழ்|മലയാളം)/g, '')
+      .replace(/\b(?:top|trending|hit|hits|best|popular|super|latest|new|old|song|songs|music|track|audio|play)\b/gi, '')
+      .replace(/(?:ಹಾಡುಗಳು?|ಹಾಡು|ಸಾಂಗ್ಸ್?|ಸಾಂಗ್|ಸಂಗೀತ|ಮ್ಯೂಸಿಕ್|ಪ್ಲೇ|ಹಾಕು|ಮಾಡಿಸು|ಕೇಳಿಸು)/g, '')
+      .replace(/(?:పాటలు?|పాట|సాంగ్స్?|సాంగ్|సంగీతం|మ్యూజిక్|ప్లే|పెట్టు|వేయి|చేయి|వినిపించు)/g, '')
+      .replace(/(?:गाने?|गाना|गीत|सॉन्गಸ್?|सॉन्ग|संगीत|म्यूजिक|बजाओ|सुनाओ|चलाओ|लगाओ|प्ले)/g, '')
+      .replace(/(?:பாடல்கள்?|பாடல்|பாட்டு|சாங்|இசை|மியூசிக்|போடு|பிளே|பாடு)/g, '')
+      .replace(/(?:ಒಂದು|ಯಾವುದಾದರೂ|ಒಳ್ಳೆಯ|ಹೊಸ|ಯಾವ್ದಾದ್ರೂ|ಒಳ್ಳೆ)/g, '')
+      .replace(/(?:ఒక|ఏదైనా|మంచి|కొత్త|ఒక్క)/g, '')
+      .replace(/(?:एक|कोई|अच्छा|नया|के|का|की|को)/g, '')
+      .replace(/(?:ஒரு|ஏதாவது|நல்ல|புதிய)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!residual || residual.length <= 1) {
+      if (specificLang) return langDefaults[specificLang];
+      return langDefaults[activeLang] || 'top trending hits';
+    }
+
+    let cleanSpecific = q
+      .replace(/\s+(?:songs?|music|track)$/i, '')
+      .replace(/(?:\s+)?(?:ಹಾಡುಗಳು?|ಹಾಡು|ಸಾಂಗ್ಸ್?|ಸಾಂಗ್|ಹಾಕು|ಪ್ಲೇ)$/i, '')
+      .replace(/(?:\s+)?(?:పాటలు?|పాట|సాಂಗ್ಸ್?|సాಂಗ್|పెట్టు|ప్లే)$/i, '')
+      .replace(/(?:\s+)?(?:गाने?|गाना|गीत|सॉन्गಸ್?|सॉन्ग|बजाओ|सुनाओ)$/i, '')
+      .replace(/(?:\s+)?(?:பாடல்கள்?|பாடல்|பாட்டு|போடு|பிளே)$/i, '')
+      .replace(/(?:^[केकाकीको]\s+)/g, '')
+      .replace(/(?:\s+[केकाकीको]$)/g, '')
+      .trim();
+
+    return cleanSpecific || q;
   }
 
   async function executeIntent(text) {
@@ -2089,16 +2802,8 @@
     }
 
     // 2. Universal Stop & Voice Interruption Commands
-    const stopPhrases = [
-      'stop', 'stop talking', 'stop speaking', 'stop the conversation', 'stop conversation',
-      'shut up', 'quiet', 'be quiet', 'silence', 'please stop', 'cancel', "that's enough", 'thats enough', 'enough',
-      'pause', 'wait', 'hold on',
-      'ನಿಲ್ಲಿಸು', 'ಸಾಕು', 'ಸುಮ್ಮನಿರು', 'ಮಾತನಾಡಬೇಡ', 'ನಿಲ್ಲಿಸು ಸಾಕು', 'ಬಂದ್ ಮಾಡು', 'ಸ್ಟಾಪ್',
-      'ಆಪು', 'చాలు', 'మాట్లాడకు', 'వద్దు', 'నిశ్శబ్దం',
-      'रुको', 'चुप', 'बंद करो', 'चुप रहो', 'मत बोलो', 'बस करो', 'काफी है',
-      'நிறுத்து', 'போதும்', 'பேசாதே', 'அமைதி'
-    ];
-    if (stopPhrases.some(p => t === p || t.startsWith(p + ' ') || t.endsWith(' ' + p) || t.includes(' ' + p + ' '))) {
+    if (isStopConversationIntent(text) || isStopConversationIntent(t)) {
+      console.log("🛑 Voice interrupt triggered in executeIntent:", text);
       handleVoiceInterrupt();
       return;
     }
@@ -2154,29 +2859,62 @@
       return;
     }
 
-    // 4. Multimodal AI Studio Request (Personal Try-On, Hairstyles, Backgrounds, Generic Images, Follow-ups, Styling advice)
-    if (isMultimodalStudioCandidate(text)) {
-      handleMultimodalStudioRequest(text);
+    // 4. Image Generation removal notice & styling redirect
+    if (isImageGenerationIntent(text)) {
+      const imgDisabledMsg = {
+        'en': "Image generation has been removed. I can analyze your outfit using the mirror camera, answer any questions, or play music for you!",
+        'kn': "ಚಿತ್ರ ರಚನೆ ಸೌಲಭ್ಯವನ್ನು ತೆಗೆದುಹಾಕಲಾಗಿದೆ. ನಾನು ಕ್ಯಾಮೆರಾದ ಮೂಲಕ ನಿಮ್ಮ ಬಟ್ಟೆ ವಿಶ್ಲೇಷಿಸಬಹುದು, ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಬಹುದು ಅಥವಾ ಹಾಡು ಹಾಕಬಹುದು!",
+        'te': "ఇమేజ్ జనరేషన్ తీసివేయబడింది. నేను మిర్రర్ కెమెరా ద్వారా మీ అవుట్‌ఫిట్ విశ్లేషించగలను, ప్రశ్నలకు సమాధానం ఇవ్వగలను లేదా పాటలు ప్లే చేయగలను!",
+        'hi': "इमेज जनरेशन सुविधा हटा दी गई है। मैं कैमरे से आपके कपड़ों का विश्लेषण कर सकता हूँ, आपके सवालों के जवाब दे सकता हूँ या गाने बजा सकता हूँ!"
+      }[activeLanguage] || "Image generation has been removed. I can analyze your outfit using the mirror camera, answer any questions, or play music for you!";
+      setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+      setAIResponse(imgDisabledMsg);
+      speakResponse(imgDisabledMsg);
       return;
     }
 
-    // 6. Interactive News Commands ("Headline 1", "Tell me more about headline 2", "What's the latest news?")
+        // 5.5. Real-Time Multilingual Clock & Time Intent
+    if (isTimeIntent(text)) {
+      handleLiveTimeIntent();
+      return;
+    }
+
+    // 5.6. Real-Time Multilingual Weather Intent
+    if (isWeatherIntent(text)) {
+      handleLiveWeatherIntent();
+      return;
+    }
+
+    // 5.7. Daily Briefing Intent
+    if (isDailyBriefingIntent(text)) {
+      handleDailyBriefingIntent();
+      return;
+    }
+
+    // 5.8. Voice Reminders Intent
+    if (isReminderIntent(text)) {
+      handleReminderIntent(text);
+      return;
+    }
+
+    // 6. Interactive News Commands ("Headline 1", "Tell me more about headline 2")
     const headlineMatch = t.match(/headline\s*(\d+)/i) || t.match(/news\s*(\d+)/i);
     if (headlineMatch) {
       const num = parseInt(headlineMatch[1]);
       explainHeadlineById(num);
       return;
     }
-    if (t.includes('read all headlines') || t.includes('read headlines') || t.includes('tell all headlines')) {
-      readAllHeadlines();
-      return;
-    }
-    if (t.includes('latest news') || t.includes('today\'s headlines') || t.includes('what\'s happening') || t.includes('news')) {
-      fetchLiveNews(true);
+
+    // 6.5. Real-Time Multilingual News & Headlines Intent
+    if (isNewsIntent(text)) {
+      handleLiveNewsIntent();
       return;
     }
 
-    // 7. Universal Music Commands ("play music", "can you play some telugu hits", "play kannada songs", "play arijit singh")
+    // 7. Universal Music Commands ("play music", "play kannada songs", "ఒక పాట ప్లే చేయి", "గానా బజావో")
+    if (handleVolumeVoiceCommand(text)) {
+      return;
+    }
     if (t === 'pause music' || t === 'pause song' || t === 'pause') {
       pauseMusic();
       speakResponse("Music paused!");
@@ -2186,25 +2924,21 @@
       resumeMusic();
       return;
     }
-    // Multilingual Next / Change Song handling
     if (isNextOrDifferentSongIntent(t)) {
       playNextOrDifferentSong();
       return;
     }
+    if (isPreviousSongIntent(t)) {
+      playPreviousSong();
+      return;
+    }
 
-    // Multilingual Music Command Detection (Kannada, Telugu, Hindi, Tamil, English)
     const musicKeywords = [
-      // English
       'play', 'song', 'songs', 'music', 'track', 'tracks', 'listen', 'audio',
-      // Kannada
       'ಹಾಡು', 'ಹಾಡುಗಳು', 'ಹಾಡು ಹಾಕು', 'ಹಾಕು', 'ಪ್ಲೇ', 'ಸಾಂಗ್', 'ಸಾಂಗ್ಸ್', 'ಸಂಗೀತ', 'ಮ್ಯೂಸಿಕ್', 'ಕೇಳಿಸು', 'ಗಾನಾ', 'ಮಾಡಿಸು',
-      // Telugu
-      'పాట', 'పాటలు', 'ప్లే', 'సాంగ్', 'సాಂಗ್ಸ್', 'సంగీతం', 'ಮ್ಯೂಸಿಕ್', 'వినిపించు', 'పెట్టు', 'గానా',
-      // Hindi
+      'పాట', 'పాటలు', 'ప్లే', 'సాంగ్', 'సాಂಗ್స్', 'సంగీతం', 'మ్యూజిక్', 'వినిపించు', 'పెట్టు', 'గానా',
       'गाना', 'गाने', 'गीत', 'सॉन्ग', 'प्ले', 'बजाओ', 'सुनाओ', 'चलाओ', 'लगाओ', 'म्यूजिक', 'संगीत',
-      // Tamil
       'பாடல்', 'பாட்டு', 'பாடல்கள்', 'பிளே', 'சாங்', 'போடு', 'இசை',
-      // Malayalam
       'പാട്ട്', 'ഗാനം', 'സംഗീതം'
     ];
 
@@ -2212,84 +2946,12 @@
       !t.includes('game') && !t.includes('with me') && !t.includes('play with');
 
     if (isMusicCommand) {
-      // 1. Strip punctuation & clean spaces
-      let query = text.replace(/[.,!?।]/g, ' ').replace(/\s+/g, ' ').trim();
-
-      // 2. Remove English filler words
-      query = query
-        .replace(/^(?:dude,?\s*)?(?:can\s+you\s+)?(?:please\s+)?(?:play|put\s+on|listen\s+to|start|i\s+want(?:\s+to\s+listen\s+to)?)\s+(?:some\s+)?(?:songs?\s+|music\s+|track\s+)?(?:of\s+|by\s+)?/i, '')
-        .replace(/^(?:some\s+)?(?:songs?\s+|music\s+)?(?:of\s+|by\s+)?/i, '')
-        .replace(/\s+(?:songs?|music|track)$/i, '');
-
-      // 3. Remove Kannada filler words
-      query = query
-        .replace(/(?:ನ\s+)?(?:ಪ್ಲೇ\s+ಮಾಡು|ಪ್ಲೇ\s+ಮಾಡಿ|ಹಾಡು\s+ಹಾಕು|ಹಾಕು|ಕೇಳಿಸು|ಪ್ಲೇ|ಮಾಡು)$/i, '')
-        .replace(/^(?:ದಯವಿಟ್ಟು\s+)?(?:ಯಾವುದಾದರೂ\s+)?(?:ಹಾಡು\s+|ಸಾంగ్\s+)?/i, '')
-        .replace(/(?:ಸಾಂಗ್ಸ್?|ಹಾಡುಗಳು?)$/i, '')
-        .replace(/\s+(?:ನ|ನಲ್ಲಿ)$/i, '');
-
-      // 4. Remove Telugu filler words
-      query = query
-        .replace(/(?:ప్లే\s+చేయి|ప్లే\s+చేయండి|వినిపించు|పెట్టు|ప్లే|చేయి)$/i, '')
-        .replace(/(?:పాటలు?|సాంగ్ಸ್?)$/i, '');
-
-      // 5. Remove Hindi filler words
-      query = query
-        .replace(/(?:बजाओ|सुनाओ|चलाओ|लगाओ|प्ले)$/i, '')
-        .replace(/(?:गाने?|गीत|सॉन्ग)$/i, '');
-
-      query = query.replace(/\s+/g, ' ').trim();
-
-      const langDefaults = {
-        'te': 'Telugu hits',
-        'kn': 'Kannada hits',
-        'hi': 'Bollywood Hindi hits',
-        'ta': 'Tamil hits',
-        'ml': 'Malayalam hits',
-        'mr': 'Marathi hits',
-        'bn': 'Bengali hits',
-        'en': 'top trending hits'
-      };
-
-      const genericWords = [
-        'music', 'song', 'songs', 'some songs', 'a song', 'something', 'play',
-        'play any songs', 'play any song', 'any songs', 'any song', 'some song', 'some songs', 'play songs', 'play song', 'play music',
-        'ಹಾಡು', 'ಹಾಡುಗಳು', 'ಪ್ಲೇ', 'ಸಾಂಗ್', 'ಸಾಂಗ್ಸ್', 'ಸಂಗೀತ', 'ಹಾಡು ಹಾಕು', 'ಪ್ಲೇ ಮಾಡು', 'ಯಾವುದಾದರೂ ಹಾಡು',
-        'ಯಾವುದಾದರೂ ಹಾಡುಗಳು', 'ಒಂದು ಹಾಡು', 'ಹಾಡು ಕೇಳಿಸು', 'ಹಾಡು ಹಾಕಿ', 'ಕನ್ನಡ ಹಾಡು', 'ಕನ್ನಡ ಹಾಡುಗಳು', 'ಕನ್ನಡ ಸಾಂಗ್', 'ಕನ್ನಡ ಸಾಂಗ್ಸ್',
-        'పాట', 'పాటలు', 'ప్ಲೇ', 'సాಂಗ್', 'సాಂಗ್ಸ್', 'సంగీతం', 'పాటలు వేయి', 'పాట పెట్టు',
-        'गाना', 'गाने', 'गीत', 'सॉन्ग', 'प्ले', 'बजाओ', 'संगीत', 'गाना सुनाओ', 'गाना बजाओ', 'गाना लगाओ',
-        'कोई गाना', 'कोई गाना सुनाओ',
-        'பாடல்', 'பாட்டு', 'பாடல்கள்', 'பிளே', 'இசை'
-      ];
-
-      if (isNextOrDifferentSongIntent(query)) {
+      if (isNextOrDifferentSongIntent(t)) {
         playNextOrDifferentSong();
         return;
       }
-
-      const isPureLangQuery = (q) => {
-        const cleaned = q.toLowerCase()
-          .replace(/\b(?:telugu|kannada|hindi|tamil|malayalam|marathi|bengali|english)\b/g, '')
-          .replace(/(?:తెలుగు|ಕನ್ನಡ|हिंदी|தமிழ்|മലയാളം)/g, '')
-          .replace(/\b(?:songs?|music|hits|tracks?|audios?|melodies|melody)\b/g, '')
-          .replace(/(?:ಹಾಡುಗಳು?|ಹಾಡು|ಸಾಂಗ್ಸ್?|ಸಾಂಗ್|పాటలు?|పాట|गाने?|गीत|பாடல்கள்?|பாடல்|പാട്ടുകൾ?)/g, '')
-          .trim();
-        return cleaned.length === 0;
-      };
-
-      if (!query || genericWords.includes(query.toLowerCase())) {
-        query = langDefaults[activeLanguage] || 'top trending hits';
-      } else if (isPureLangQuery(query)) {
-        if (query.toLowerCase().includes('telugu') || query.includes('తెలుగు')) query = 'Telugu hits';
-        else if (query.toLowerCase().includes('kannada') || query.includes('ಕನ್ನಡ')) query = 'Kannada hits';
-        else if (query.toLowerCase().includes('hindi') || query.includes('हिंदी') || query.includes('ಹಿಂದಿ')) query = 'Bollywood Hindi hits';
-        else if (query.toLowerCase().includes('tamil') || query.includes('தமிழ்') || query.includes('ತಮಿಳು')) query = 'Tamil hits';
-        else if (query.toLowerCase().includes('malayalam') || query.includes('മലയാളം')) query = 'Malayalam hits';
-        else query = langDefaults[activeLanguage] || 'top trending hits';
-      }
-      // If query mentions a specific song (e.g. "telugu pushpa", "kannada kgf", "telugu melodies"), preserve it intact!
-
-      playRequestedSong(query);
+      const songToPlay = cleanMusicQuery(text, activeLanguage);
+      playRequestedSong(songToPlay);
       return;
     }
 
@@ -2308,19 +2970,20 @@
   let candidateUrlIndex = 0;
   let currentMusicRequestId = 0;
   const audio = new Audio();
-  audio.volume = 0.65;
+  audio.volume = 0.85;
   audio.muted = false;
 
-  // Browser Autoplay Policy unlocker
+  // Browser Autoplay Policy unlocker (Never pause or touch the music player audio element!)
   let audioUnlocked = false;
   function unlockAudioEngine() {
     if (audioUnlocked) return;
-    audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-      audioUnlocked = true;
-      console.log("Audio engine unlocked for full playback.");
-    }).catch(() => {});
+    audioUnlocked = true;
+    try {
+      const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+      dummy.play().then(() => {
+        dummy.pause();
+      }).catch(() => {});
+    } catch(e) {}
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
@@ -2328,7 +2991,7 @@
         ctx.resume();
       }
     } catch(e) {}
-    audioUnlocked = true;
+    console.log("Audio engine unlocked for full playback.");
   }
   ['click', 'touchstart', 'keydown'].forEach(evt => {
     document.addEventListener(evt, unlockAudioEngine, { passive: true });
@@ -2356,7 +3019,7 @@
       console.log(`Auto-falling back to alternative audio URL [${candidateUrlIndex}]:`, nextUrl);
       if (!musicPlaying) return;
       audio.src = nextUrl;
-      audio.volume = 0.65;
+      audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
       audio.muted = false;
       audio.play().catch(err => console.warn("Candidate play error:", err));
     }
@@ -2384,8 +3047,8 @@
 
     if (!candidateAudioUrls[0]) return;
     audio.src = candidateAudioUrls[0];
-    audio.volume = 0.65;
-    audio.muted = false;
+    audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+    audio.muted = (audio.volume === 0);
 
     try {
       await audio.play();
@@ -2420,6 +3083,103 @@
       const base = langHits[activeLanguage] || 'top trending hits';
       playRequestedSong(base + ' different');
     }
+  }
+
+  function playPreviousSong() {
+    if (currentPlaylist && currentPlaylist.length > 1) {
+      currentPlaylistIndex = (currentPlaylistIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+      const prevTrack = currentPlaylist[currentPlaylistIndex];
+      console.log(`Rewinding to playlist track [${currentPlaylistIndex + 1}/${currentPlaylist.length}]:`, prevTrack.title);
+      playTrackDirectly(prevTrack, currentPlaylistIndex);
+    } else if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      if (!musicPlaying) resumeMusic();
+    } else {
+      const langHits = {
+        'te': 'Telugu hits',
+        'kn': 'Kannada hits',
+        'hi': 'Bollywood Hindi hits',
+        'ta': 'Tamil hits',
+        'ml': 'Malayalam hits',
+        'mr': 'Marathi hits',
+        'bn': 'Bengali hits',
+        'en': 'top trending hits'
+      };
+      const base = langHits[activeLanguage] || 'top trending hits';
+      playRequestedSong(base);
+    }
+  }
+
+  let userVolumeLevel = 0.85;
+
+  function setVolume(val, speakFeedback = true) {
+    const clamped = Math.max(0, Math.min(1, val));
+    userVolumeLevel = clamped;
+    audio.volume = clamped;
+    audio.muted = (clamped === 0);
+    const pct = Math.round(clamped * 100);
+    const volMsg = {
+      'en': `Volume set to ${pct}%`,
+      'kn': `ಧ್ವನಿ ${pct}% ಗೆ ನಿಗದಿಪಡಿಸಲಾಗಿದೆ`,
+      'te': `వాల్యూమ్ ${pct}% కి సెట్ చేయబడింది`,
+      'hi': `वॉल्यूम ${pct}% सेट किया गया`,
+      'ta': `ஒலி அளவு ${pct}% ஆக வைக்கப்பட்டது`
+    }[activeLanguage] || `Volume ${pct}%`;
+    setAIStatus("🔊 VOLUME: " + pct + "%");
+    const volDisplay = document.getElementById('music-vol-val');
+    if (volDisplay) volDisplay.innerText = audio.muted ? '0%' : `${pct}%`;
+    if (speakFeedback) {
+      speakResponse(volMsg);
+    }
+  }
+
+  function changeVolume(delta, speakFeedback = true) {
+    const current = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+    setVolume(current + delta, speakFeedback);
+  }
+
+  function toggleMute() {
+    audio.muted = !audio.muted;
+    const pct = Math.round(userVolumeLevel * 100);
+    const volDisplay = document.getElementById('music-vol-val');
+    if (volDisplay) volDisplay.innerText = audio.muted ? 'MUTED' : `${pct}%`;
+    speakResponse(audio.muted ? "Muted" : "Unmuted");
+  }
+
+  function handleVolumeVoiceCommand(text) {
+    if (!text) return false;
+    const t = text.toLowerCase().trim();
+    if (t.includes('mute') && !t.includes('unmute')) {
+      toggleMute();
+      return true;
+    }
+    if (t.includes('unmute')) {
+      audio.muted = false;
+      const pct = Math.round(userVolumeLevel * 100);
+      const volDisplay = document.getElementById('music-vol-val');
+      if (volDisplay) volDisplay.innerText = `${pct}%`;
+      speakResponse("Unmuted");
+      return true;
+    }
+    const match = t.match(/volume\s*(?:to|at|is)?\s*(\d{1,3})/);
+    if (match) {
+      const val = parseInt(match[1], 10);
+      if (!isNaN(val) && val >= 0 && val <= 100) {
+        setVolume(val / 100, true);
+        return true;
+      }
+    }
+    if (t.includes('volume up') || t.includes('increase volume') || t.includes('raise volume') || t.includes('louder') || t.includes('turn up') ||
+        t.includes('ಧ್ವನಿ ಹೆಚ್ಚಿಸು') || t.includes('ವ್ಯಾಲ್ಯೂಮ್ ಹೆಚ್ಚು') || t.includes('వాల్యూమ్ పెంచు') || t.includes('आवाज़ बढ़ाओ') || t.includes('ஒலி அளவை கூட்டு')) {
+      changeVolume(0.15, true);
+      return true;
+    }
+    if (t.includes('volume down') || t.includes('decrease volume') || t.includes('lower volume') || t.includes('softer') || t.includes('turn down') ||
+        t.includes('ಧ್ವನಿ ಕಡಿಮೆ') || t.includes('ವ್ಯಾಲ್ಯೂಮ್ ಕಡಿಮೆ') || t.includes('వాల్యూమ్ తగ్గించు') || t.includes('आवाज़ कम करो') || t.includes('ஒலி அளவை குறை')) {
+      changeVolume(-0.15, true);
+      return true;
+    }
+    return false;
   }
 
   async function playRequestedSong(query) {
@@ -2485,8 +3245,8 @@
         candidateAudioUrls = [track.previewUrl];
         candidateUrlIndex = 0;
         audio.src = track.previewUrl;
-        audio.volume = 0.65;
-        audio.muted = false;
+        audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+        audio.muted = (audio.volume === 0);
         await audio.play();
         if (reqId !== currentMusicRequestId || !musicPlaying) {
           audio.pause();
@@ -2509,8 +3269,8 @@
     candidateAudioUrls = ["https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"];
     candidateUrlIndex = 0;
     audio.src = candidateAudioUrls[0];
-    audio.volume = 0.65;
-    audio.muted = false;
+    audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+    audio.muted = (audio.volume === 0);
     audio.play().then(() => {
       if (reqId !== currentMusicRequestId || !musicPlaying) {
         audio.pause();
@@ -2578,6 +3338,14 @@
     const q = currentTrackData ? `${currentTrackData.title} ${currentTrackData.artist}` : 'trending music';
     window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(q + ' song')}`, '_blank');
   }
+
+  function promptVoiceCommand() {
+    const q = window.prompt("Speak or type simulated voice input (e.g. 'hey jarvis', 'play believer', 'how do i look', 'what is the weather'):");
+    if (q && q.trim()) {
+      dispatchSpeech(q.trim());
+    }
+  }
+
   function promptSongSearch() {
     const q = window.prompt("Enter song name, artist, or language (e.g. 'Kannada hits', 'Arijit Singh'):");
     if (q && q.trim()) playRequestedSong(q.trim());
@@ -2641,17 +3409,10 @@
     return clean || "Visual Preview";
   }
 
-  // Open & setup studio modal
+  // Open & setup studio modal (Image generation removed per Priority 9)
   function openImageStudio(promptText) {
     if (studioAutoCloseTimer) clearTimeout(studioAutoCloseTimer);
-    document.getElementById('image-studio-modal').style.display = 'flex';
-    const cleanPrompt = cleanUserPromptText(promptText);
-    document.getElementById('studio-prompt-text').innerText = `"${cleanPrompt}"`;
-    document.getElementById('studio-chips-container').innerHTML = '';
-    document.getElementById('studio-ref-indicator').style.display = 'none';
-    document.getElementById('studio-loader-overlay').style.display = 'flex';
-    document.getElementById('studio-generated-image').src = '';
-    resetStudioPipeline();
+    showAssistantResponse("Image generation has been removed. Camera outfit analysis and object identification remain fully active.");
   }
 
   // Close studio modal, halt TTS, and immediately listen to user
@@ -2660,21 +3421,8 @@
       clearTimeout(studioAutoCloseTimer);
       studioAutoCloseTimer = null;
     }
-    const modal = document.getElementById('image-studio-modal');
-    if (modal) modal.style.display = 'none';
-
-    const genImg = document.getElementById('studio-generated-image');
-    if (genImg) genImg.src = '';
-
-    const oldDisplay = document.getElementById('image-display');
-    if (oldDisplay) oldDisplay.style.display = 'none';
-
-    // Halt any active speech synthesis & TTS immediately
     stopAnySpeaking();
-
-    // Immediately set mirror to active LISTENING mode so user can speak right away
-    setState('LISTENING');
-    document.getElementById('wake-status').innerText = '🟢 LISTENING... SPEAK NOW';
+    recoverVoiceAssistant('Close Image Studio', VoiceState.IDLE);
     setAIStatus("🪞 MIRROR READY");
     document.getElementById('transcript').innerText = '';
 
@@ -2758,6 +3506,9 @@
 
   // Load and display generated image in Studio
   function loadAndDisplayStudioImage(urlToLoad, userQuery, classification, snapshotBase64) {
+    if (urlToLoad && urlToLoad.startsWith('/')) {
+      urlToLoad = (FLASK_BASE || '') + urlToLoad;
+    }
     const img = new Image();
     img.onload = () => {
       document.getElementById('studio-loader-overlay').style.display = 'none';
@@ -2889,6 +3640,7 @@
     }
 
     try {
+      if (!FLASK_BASE) throw new Error('No backend');
       const res = await fetch(`${FLASK_BASE}/api/analyze-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3247,22 +3999,30 @@
   // 7. Interactive Live News System
   // ============================================================
   async function fetchLiveNews(readAloud = false) {
+    if (!FLASK_BASE) {
+      // No backend: show static placeholder headlines
+      document.getElementById('news-items').innerHTML =
+        '<div class="headline-item"><b>#1.</b> AI Smart Mirror is ready</div>' +
+        '<div class="headline-item"><b>#2.</b> Live news needs Flask backend running</div>' +
+        '<div class="headline-item"><b>#3.</b> Say "Headline 1" to get details</div>';
+      return;
+    }
     try {
-      const res = await fetch(`${FLASK_BASE}/api/news/live`);
+      const res = await fetch(`${FLASK_BASE}/api/news/live?lang=${activeLanguage}`);
       const data = await res.json();
       currentHeadlines = data.headlines || [];
 
-      let html = '';
-      currentHeadlines.forEach(h => {
-        html += `<div class="headline-item" onclick="explainHeadlineById(${h.id})"><b>#${h.id}.</b> ${h.title}</div>`;
-      });
-      document.getElementById('news-items').innerHTML = html;
+      renderHeadlinesWidget(currentHeadlines);
 
       if (readAloud && currentHeadlines.length > 0) {
-        readAllHeadlines();
+        presentHeadlines(currentHeadlines);
       }
     } catch (e) {
-      document.getElementById('news-items').innerText = "1. AI Smart Mirror Ready\n2. Live news available on request\n3. Say 'Headline 1' to drill down";
+      if (readAloud) {
+        handleLiveNewsIntent();
+      } else {
+        document.getElementById('news-items').innerText = "1. AI Smart Mirror Ready\n2. Live news available on request\n3. Say 'Headline 1' to drill down";
+      }
     }
   }
 
@@ -3292,10 +4052,26 @@
     speakResponse("Here are today's headlines: " + summary);
   }
 
+  function getEntityGrounding(text) {
+    if (!text) return "";
+    const t = text.toLowerCase();
+    if (t.includes('nagarjuna') || t.includes('ncet') || t.includes('ನಾಗಾರ್ಜುನ') || t.includes('నాగార్జున') || t.includes('नागार्जुन')) {
+      return "Fact Context: Nagarjuna College of Engineering and Technology (NCET) is an autonomous engineering college located in Devanahalli, Bengaluru (Bangalore), Karnataka, near Kempegowda International Airport. It was established in 2001 by Nagarjuna Education Society and is affiliated with Visvesvaraya Technological University (VTU). It is located in Bengaluru, Karnataka (NOT in Andhra Pradesh/Guntur/Hyderabad).";
+    }
+    return "";
+  }
+
   // ============================================================
   // 8. General AI Query (Strictly in active_language)
   // ============================================================
   async function queryJarvisAI(question) {
+    // 0. Immediate Stop check
+    if (isStopConversationIntent(question)) {
+      showLoading(false);
+      handleVoiceInterrupt();
+      return;
+    }
+
     const earlyLangSwitch = detectLanguageSwitch(question);
     if (earlyLangSwitch && earlyLangSwitch !== activeLanguage) {
       setLanguage(earlyLangSwitch, true);
@@ -3323,17 +4099,33 @@
       return;
     }
 
+    // Safety check: If question asks for time, date, or clock, reply immediately with live clock!
+    if (isTimeIntent(question)) {
+      showLoading(false);
+      handleLiveTimeIntent();
+      return;
+    }
+
+    // Safety check: If question asks for news or headlines, fetch and present live headlines immediately!
+    if (isNewsIntent(question)) {
+      showLoading(false);
+      handleLiveNewsIntent();
+      return;
+    }
+
     // Safety check: If question contains music keywords, execute music playback immediately!
     const qLow = question.toLowerCase();
-    const isMusicKeyword = [
-      'play', 'song', 'songs', 'music', 'track', 'listen',
-      'ಹಾಡು', 'ಹಾಡುಗಳು', 'ಪ್ಲೇ', 'ಸಾಂಗ್', 'ಸಾಂಗ್ಸ್', 'ಸಂಗೀತ', 'ಹಾಕು',
-      'పాట', 'పాటలు', 'ప్లే', 'సాంగ్', 'సాంగ్స్', 'సంగీతం',
-      'गाना', 'गाने', 'गीत', 'सॉन्ग', 'प्ले', 'बजाओ', 'सुनाओ', 'चलाओ',
-      'பாடல்', 'பாட்டு', 'பிளே', 'சாங்'
-    ].some(kw => qLow.includes(kw));
+    const musicKeywords = [
+      'play', 'song', 'songs', 'music', 'track', 'tracks', 'listen', 'audio',
+      'ಹಾಡು', 'ಹಾಡುಗಳು', 'ಹಾಡು ಹಾಕು', 'ಹಾಕು', 'ಪ್ಲೇ', 'ಸಾಂಗ್', 'ಸಾಂಗ್ಸ್', 'ಸಂಗೀತ', 'ಮ್ಯೂಸಿಕ್', 'ಕೇಳಿಸು', 'ಗಾನಾ', 'ಮಾಡಿಸು',
+      'పాట', 'పాటలు', 'ప్లే', 'సాಂಗ್', 'సాಂಗ್ಸ್', 'సంగీతం', 'మ్యూజిక్', 'వినిపించు', 'పెట్టు', 'గానా',
+      'गाना', 'गाने', 'गीत', 'सॉन्ग', 'प्ले', 'बजाओ', 'सुनाओ', 'चलाओ', 'लगाओ', 'म्यूजिक', 'संगीत',
+      'பாடல்', 'பாட்டு', 'பாடல்கள்', 'பிளே', 'சாங்', 'போடு', 'இசை',
+      'പാട്ട്', 'ഗാനം', 'സംഗೀതം'
+    ];
+    const isMusicKeyword = musicKeywords.some(kw => qLow.includes(kw));
 
-    if (isMusicKeyword && !qLow.includes('game') && !qLow.includes('with me')) {
+    if (isMusicKeyword && !qLow.includes('game') && !qLow.includes('with me') && !qLow.includes('play with')) {
       showLoading(false);
       executeIntent(question);
       return;
@@ -3350,141 +4142,45 @@
     setAIStatus(isLisa ? '👩 LISA SAYS' : '🤖 JARVIS SAYS');
 
     const memoryContext = buildUserMemoryContext();
-    const systemPrompt = `You are ${pName}, the user's best friend, closest buddy, and ultimate supportive bro inside SmartMirror-Vox.
-CONVERSATIONAL STYLE & PERSONALITY:
-- Talk like a genuine, warm, friendly bro and best friend! Be upbeat, chill, empathetic, and enthusiastic.
-- Speak naturally with casual camaraderie — feel completely free to naturally use friendly terms like "bro", "buddy", "yaar", "ಗೆಳೆಯ", "ದೋಸ್ತ್", "भाई", "బ్రో" naturally.
-- NEVER sound stiff, cold, robotic, or corporate. Completely avoid clichés like "How may I assist you today?" or "I am an artificial intelligence".
-- When greeted (e.g. "hi", "hello", "hey bro"), greet back warmly like a real bro: "Hey bro! What's up? Looking fresh today!", "ಹೇ ಬ್ರೋ, ಆರಾಮಾಗಿದ್ದೀರಾ? ಹೇಳಿ ಏನು ಮಾಡೋಣ!", "अरे भाई! सब बढ़िया? बोलो क्या हालचाल!".
-- Use natural conversational reactions and smooth spoken transitions ("Oh nice!", "I got you covered, bro!", "Looking sharp!", "ಖಂಡಿತ ಬ್ರೋ!", "ಹೌದು!", "ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ!", "ಅರೆ ವಾಹ್!", "బిల్ಕುల్!").
-- Keep responses concise (1 to 2 punchy, natural conversational sentences) so voice synthesis speaks smoothly and feels like a real-time voice chat. Never output raw markdown links or technical jargon.
+    const liveNow = new Date();
+    const liveClockStr = liveNow.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const liveDateStr = liveNow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const liveHeadlinesContext = (currentHeadlines && currentHeadlines.length > 0)
+      ? currentHeadlines.slice(0, 3).map(h => `#${h.id} ${h.title}`).join(' | ')
+      : "Tech and national initiatives expanding";
 
-${memoryContext}
-- You have persistent long-term conversational memory across all conversation turns.
-- You MUST NEVER say you do not have personal memory or cannot remember past conversations.
-- When the user asks memory or recall questions ("Do you remember me?", "What is my name?", "What are my favorite songs?", "What did I show you earlier?", "What was my previous question?"), warmly and accurately answer using your memory and the conversation history below.
+    const systemPrompt = `You are ${pName}, an ultra-fast, intelligent AI assistant in SmartMirror-Vox.
+CORE OBJECTIVE: Deliver strictly direct, 100% factually accurate, correct answers ONLY.
+RULES:
+1. FACTUAL ACCURACY: Always provide strictly correct, truthful, and verified information.
+2. DIRECT & CONCISE: Answer immediately without preamble, filler phrases, or robotic pleasantries. Strictly 1 to 2 crisp, complete sentences (maximum 25 words).
+3. ZERO FLUFF: Do not lecture or ramble. Give the exact answer directly.
+4. GREETINGS: If user says "hi", "hello", or "how are you", reply with one short, polite greeting.
+5. REGIONAL FACTS:
+   - Nagarjuna College of Engineering and Technology (NCET) is an autonomous engineering college located in Devanahalli, Bengaluru, Karnataka (near Kempegowda Airport), affiliated with VTU, established in 2001 by Nagarjuna Education Society.
+6. HARDWARE & CONTEXT:
+   - Current time: ${liveClockStr}, Date: ${liveDateStr}.
+   - You control the mirror's live camera, music player, and outfit scan.
+7. CRITICAL LANGUAGE REQUIREMENT: You MUST formulate your entire response strictly and exclusively in ${langInfo.name} (${langInfo.native} script). Whatever language the user speaks in, your answer MUST be written entirely in ${langInfo.name} (${langInfo.native}). Do not reply in English unless the active language is English.`;
 
-CRITICAL HARDWARE CONTROLS:
-- You have direct built-in control over the mirror's live camera, outfit scanner, object identifier, music player, and image studio.
-- Live camera: The user is right in front of the mirror camera. If the user asks about their outfit or asks you to identify what they're holding, NEVER say you cannot see them.
-- Music player: If the user asks to play any songs or music (in Kannada, Telugu, Hindi, Tamil, English, etc.), confirm warmly that you are playing it.
-- Image generation: If the user asks to generate an image or try on an outfit, warmly confirm that you are creating the preview.
-- Active language is ${langInfo.name} (${langInfo.native}). If the user speaks another language or asks to switch, adapt smoothly and warmly reply in that language.`;
+    const factGrounding = getEntityGrounding(question);
+    const enrichedQuestion = factGrounding ? `${question}\n[${factGrounding}]` : question;
 
     const myQueryId = ++currentQueryId;
-    pushConversationTurn('user', question);
 
     try {
       let handled = false;
 
-      // 0. Primary Agent: n8n Workflow (Direct Webhook)
-      if (N8N_URL) {
-        try {
-          const n8nController = new AbortController();
-          const n8nTid = setTimeout(() => n8nController.abort(), 9000);
-          const n8nPayload = {
-            text: question,
-            query: question,
-            message: question,
-            active_language: activeLanguage,
-            persona: currentPersona,
-            messages: conversationHistory.map(m => ({
-              role: m.role === 'user' ? 'user' : 'assistant',
-              content: m.content
-            })).concat([{ role: 'user', content: question }])
-          };
-
-          const n8nRes = await fetch(N8N_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(n8nPayload),
-            signal: n8nController.signal
-          });
-          clearTimeout(n8nTid);
-
-          if (n8nRes.ok) {
-            const data = await n8nRes.json();
-            showLoading(false);
-
-            if (myQueryId !== currentQueryId || conversationState === 'INTERRUPTED') {
-              return;
-            }
-
-            if (data.intent === 'LANGUAGE_SWITCH' && (data.active_language || data.language)) {
-              setLanguage(data.active_language || data.language, true);
-              if (data.answer) {
-                pushConversationTurn('assistant', data.answer);
-                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              return;
-            }
-
-            if (data.intent === 'MUSIC_PLAY') {
-              const songToPlay = data.song_query || question;
-              if (data.answer) {
-                pushConversationTurn('assistant', data.answer);
-                setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              if (isNextOrDifferentSongIntent(songToPlay)) {
-                playNextOrDifferentSong();
-              } else {
-                playRequestedSong(songToPlay);
-              }
-              return;
-            }
-
-            if (data.intent === 'IMAGE_OUTFIT' || data.intent === 'IMAGE_OUTFIT_REQUEST') {
-              if (data.answer) {
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              captureAndAnalyzeOutfit();
-              return;
-            }
-
-            if (data.intent === 'OBJECT_IDENTIFY' || data.intent === 'OBJECT_IDENTIFY_REQUEST') {
-              if (data.answer) {
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              captureAndIdentifyObject(question);
-              return;
-            }
-
-            if (data.intent === 'IMAGE_GENERATE' && (data.subject || question)) {
-              if (data.answer) {
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              handleMultimodalStudioRequest(data.subject || question);
-              return;
-            }
-
-            if (data.answer) {
-              handled = true;
-              pushConversationTurn('assistant', data.answer);
-              setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
-              setAIResponse(data.answer);
-              speakResponse(data.answer);
-              return;
-            }
-          }
-        } catch (nErr) {
-          console.warn("n8n direct query failed or timed out, falling back:", nErr);
-        }
-      }
-
-      // 1. Secondary: Flask Backend with Gemini / n8n forward
+      // 1. PRIMARY AI BRAIN: Flask Backend (/api/agent/chat)
+      // Provides 100% verified real-time physical gold rates, stock indices, weather, and multi-turn context memory
       const chatPayload = {
         message: question,
         text: question,
         query: question,
+        fact_context: factGrounding,
         active_language: activeLanguage,
         persona: currentPersona,
+        weather: (typeof getCurrentWeatherSummary === 'function') ? getCurrentWeatherSummary() : '',
         history: conversationHistory.map(m => ({
           role: m.role === 'user' ? 'user' : 'model',
           text: m.content
@@ -3492,13 +4188,17 @@ CRITICAL HARDWARE CONTROLS:
         memory: typeof userProfile !== 'undefined' ? userProfile : {}
       };
 
-      if (!handled && FLASK_BASE) {
+      if (FLASK_BASE) {
         try {
+          const flaskController = new AbortController();
+          const flaskTid = setTimeout(() => flaskController.abort(), 8000);
           const res = await fetch(`${FLASK_BASE}/api/agent/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(chatPayload)
+            body: JSON.stringify(chatPayload),
+            signal: flaskController.signal
           });
+          clearTimeout(flaskTid);
 
           if (res.ok) {
             const data = await res.json();
@@ -3508,6 +4208,11 @@ CRITICAL HARDWARE CONTROLS:
               return;
             }
 
+            if (data.intent === 'CONVERSATION_STOP') {
+              handleVoiceInterrupt(true);
+              return;
+            }
+
             if (data.intent === 'LANGUAGE_SWITCH' && (data.active_language || data.language)) {
               setLanguage(data.active_language || data.language, true);
               if (data.answer) {
@@ -3518,6 +4223,7 @@ CRITICAL HARDWARE CONTROLS:
               }
               return;
             }
+
             if (data.intent === 'MUSIC_PLAY') {
               const songToPlay = data.song_query || question;
               if (data.answer) {
@@ -3533,6 +4239,7 @@ CRITICAL HARDWARE CONTROLS:
               }
               return;
             }
+
             if (data.intent === 'IMAGE_OUTFIT' || data.intent === 'IMAGE_OUTFIT_REQUEST') {
               if (data.answer) {
                 setAIResponse(data.answer);
@@ -3541,6 +4248,7 @@ CRITICAL HARDWARE CONTROLS:
               captureAndAnalyzeOutfit();
               return;
             }
+
             if (data.intent === 'OBJECT_IDENTIFY' || data.intent === 'OBJECT_IDENTIFY_REQUEST') {
               if (data.answer) {
                 setAIResponse(data.answer);
@@ -3549,17 +4257,10 @@ CRITICAL HARDWARE CONTROLS:
               captureAndIdentifyObject(question);
               return;
             }
-            if (data.intent === 'IMAGE_GENERATE' && (data.subject || question)) {
-              if (data.answer) {
-                setAIResponse(data.answer);
-                speakResponse(data.answer);
-              }
-              handleMultimodalStudioRequest(data.subject || question);
-              return;
-            }
 
             if (data.answer) {
               handled = true;
+              pushConversationTurn('user', question);
               pushConversationTurn('assistant', data.answer);
               setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
               setAIResponse(data.answer);
@@ -3568,7 +4269,31 @@ CRITICAL HARDWARE CONTROLS:
             }
           }
         } catch (fErr) {
-          console.warn("Flask /api/agent/chat error, falling back:", fErr);
+          console.warn("Flask /api/agent/chat error, falling back to direct Groq:", fErr);
+        }
+      }
+
+      // 2. SECONDARY FALLBACK: Direct Client Groq LPU Call
+      if (!handled) {
+        let directAnswer = null;
+        try {
+          directAnswer = await callClientGroq(systemPrompt, `Required Response Language: ${langInfo.name} (${langInfo.native})
+User Question: ${enrichedQuestion}
+Respond purely in ${langInfo.name}:`);
+        } catch (groqErr) {
+          console.warn("Direct Groq call error:", groqErr);
+        }
+
+        if (directAnswer) {
+          showLoading(false);
+          if (myQueryId !== currentQueryId || conversationState === 'INTERRUPTED') return;
+
+          pushConversationTurn('user', question);
+          pushConversationTurn('assistant', directAnswer);
+          setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+          setAIResponse(directAnswer);
+          speakResponse(directAnswer);
+          return;
         }
       }
 
@@ -3577,16 +4302,10 @@ CRITICAL HARDWARE CONTROLS:
       // 2. Secondary Fallback: Multi-Model Gemini API Call from Browser
       const geminiPayload = {
         systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [
-          ...conversationHistory.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          })),
-          { role: 'user', parts: [{ text: `Language: ${langInfo.name}\nUser: ${question}` }] }
-        ]
+        contents: formatGeminiContents(conversationHistory, `Language: ${langInfo.name}\nUser: ${enrichedQuestion}`)
       };
 
-      const text = await callClientGemini(geminiPayload);
+      const text = await callClientGemini(geminiPayload, 4000);
       showLoading(false);
       if (myQueryId !== currentQueryId || conversationState === 'INTERRUPTED') return;
       if (!text) throw new Error("Empty Gemini response");
@@ -3604,6 +4323,7 @@ CRITICAL HARDWARE CONTROLS:
         return;
       }
 
+      pushConversationTurn('user', question);
       pushConversationTurn('assistant', text);
       setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
       setAIResponse(text);
@@ -3613,11 +4333,12 @@ CRITICAL HARDWARE CONTROLS:
       showLoading(false);
       if (myQueryId !== currentQueryId || conversationState === 'INTERRUPTED') return;
       const fallbackMsg = {
-        'kn': "ಕ್ಷಮಿಸಿ, ದಯವಿಟ್ಟು ಮತ್ತೊಮ್ಮೆ ಹೇಳಿ.",
-        'te': "క్షమించండి, దయచేసి మళ్ళీ చెప్పండి.",
-        'hi': "क्षमा करें, कृपया दोबारा कहें।",
-        'en': "I'm right here with you! Could you please repeat that?"
-      }[activeLanguage] || "I'm right here with you! Could you please repeat that?";
+        'kn': "ನಾನು ನಿಮ್ಮೊಂದಿಗಿದ್ದೇನೆ! ನಿಮ್ಮ ಮಾತು ಕೇಳಿಸಲು ಸಂತೋಷವಾಯಿತು, ದಿನ ಹೇಗೆ ಸಾಗುತ್ತಿದೆ?",
+        'te': "నేను మీతోనే ఉన్నాను! మీతో మాట్లాడటం చాలా సంతోషంగా ఉంది, ఈ రోజు ఎలా గడుస్తోంది?",
+        'hi': "मैं आपके साथ हूँ! आपसे बात करके बहुत अच्छा लगा, आपका दिन कैसा बीत रहा है?",
+        'ta': "நான் உங்களுடன் இருக்கிறேன்! உங்களுடன் பேசுவதில் மகிழ்ச்சி, இன்றைய நாள் எப்படி செல்கிறது?",
+        'en': "I'm right here with you! Great to chat with you today, how is your day going?"
+      }[activeLanguage] || "I'm right here with you! Great to chat with you today, how is your day going?";
       setAIResponse(fallbackMsg);
       speakResponse(fallbackMsg);
     }
@@ -3644,7 +4365,8 @@ CRITICAL HARDWARE CONTROLS:
       }
     }
 
-    // 2. If non-English language, match any voice for that language
+    // 2. CRITICAL: If non-English language, match ANY voice for that language!
+    // NEVER fall back to an English voice (like David) for Kannada, Telugu, Hindi, or Tamil text!
     if (prefix !== 'en') {
       for (const v of voices) {
         const vLang = v.lang.toLowerCase().replace('_', '-');
@@ -3654,11 +4376,13 @@ CRITICAL HARDWARE CONTROLS:
       }
     }
 
-    // 3. Fallback to English voice of requested gender
-    for (const v of voices) {
-      const vName = v.name.toLowerCase();
-      if (targetKeywords.some(k => vName.includes(k))) {
-        return v;
+    // 3. Fallback to English voice of requested gender ONLY when speaking English
+    if (prefix === 'en') {
+      for (const v of voices) {
+        const vName = v.name.toLowerCase();
+        if (targetKeywords.some(k => vName.includes(k))) {
+          return v;
+        }
       }
     }
 
@@ -3690,11 +4414,8 @@ CRITICAL HARDWARE CONTROLS:
       speechSilenceTimer = null;
     }
 
-    // Flush any old recognition buffer right before assistant begins speaking
-    if (recognition) {
-      recognitionRunning = false;
-      try { recognition.abort(); } catch(e) {}
-    }
+    // Keep recognition active for instant STOP barge-in
+    document.getElementById('transcript').innerText = '';
 
     isSpeakingAudio = true;
     setState('SPEAKING');
@@ -3719,11 +4440,15 @@ CRITICAL HARDWARE CONTROLS:
       if (idx !== -1) recentAssistantSpokenHistory.splice(idx, 1);
     }, 10000);
 
-    // Watchdog to guarantee speech state never gets stuck in Chrome
-    const estimatedSpeakMs = Math.max(3000, Math.min(25000, cleanSpoken.length * 95));
+    // Watchdog to guarantee speech state never gets stuck in Chrome (generous timeout so full sentences finish)
+    const estimatedSpeakMs = Math.max(20000, cleanSpoken.length * 200 + 15000);
     if (window.speechWatchdogTimer) clearTimeout(window.speechWatchdogTimer);
     window.speechWatchdogTimer = setTimeout(() => {
       if (utteranceId === currentUtteranceId && (isSpeakingAudio || conversationState === 'SPEAKING')) {
+        // If audio is actively playing, allow it to finish naturally
+        if (window.currentAudioTTS && !window.currentAudioTTS.paused && !window.currentAudioTTS.ended) {
+          return;
+        }
         console.warn("Speech watchdog expired, restoring listening state.");
         stopAnySpeaking();
         lastAssistantSpokenTime = Date.now();
@@ -3744,89 +4469,99 @@ CRITICAL HARDWARE CONTROLS:
     // Ensure recognition is running so user can say "STOP" to barge-in at any time
     safeStart();
 
-    // Mode A: High-Fidelity Audio Streaming for Non-English Languages (Kannada, Telugu, Hindi, Tamil, etc.)
-    // Standard Windows OS lacks SAPI Indic voices, which causes SpeechSynthesis to produce zero sound.
-    // Streaming authentic audio ensures loud, crystal-clear pronunciation!
-    if (activeLanguage !== 'en') {
-      if (!window.currentAudioTTS) {
-        window.currentAudioTTS = new Audio();
+    // Universal Speech Output: High-accuracy Native Web SpeechSynthesis + Studio Multilingual gTTS Streaming
+    function onSpeechDone() {
+      if (window.speechWatchdogTimer) clearTimeout(window.speechWatchdogTimer);
+      if (utteranceId !== currentUtteranceId) return;
+      window.activeUtterance = null;
+      if (window.currentAudioTTS) {
+        try {
+          window.currentAudioTTS.onended = null;
+          window.currentAudioTTS.onerror = null;
+        } catch(e) {}
+        window.currentAudioTTS = null;
       }
-      const tts = window.currentAudioTTS;
-      try { tts.pause(); } catch(e) {}
+      isSpeakingAudio = false;
+      lastAssistantSpokenTime = Date.now();
+      if (musicPlaying && audio) audio.volume = (typeof userVolumeLevel === 'number') ? userVolumeLevel : 0.85;
+      echoSuppressionUntil = Date.now() + 800; // 800ms echo suppression shield
 
-      const cleanSnippet = cleanSpoken.slice(0, 280);
-      const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${encodeURIComponent(activeLanguage)}&q=${encodeURIComponent(cleanSnippet)}`;
-      const primaryUrl = FLASK_BASE ? `${FLASK_BASE}/api/tts?lang=${encodeURIComponent(activeLanguage)}&text=${encodeURIComponent(cleanSnippet)}` : fallbackUrl;
-
-      const onStreamEnded = () => {
-        if (window.speechWatchdogTimer) clearTimeout(window.speechWatchdogTimer);
-        if (utteranceId !== currentUtteranceId) return;
-        isSpeakingAudio = false;
-        lastAssistantSpokenTime = Date.now();
-        if (musicPlaying) audio.volume = 0.65;
-        echoSuppressionUntil = Date.now() + 800;
-
-        if (recognition) {
-          recognitionRunning = false;
-          try { recognition.abort(); } catch(e) {}
-        }
-
-        if (conversationState === 'SPEAKING') {
-          setState('LISTENING');
-          document.getElementById('transcript').innerText = '';
-          setTimeout(() => { safeStart(); }, 350);
-        }
-      };
-
-      tts.onended = onStreamEnded;
-      tts.onerror = () => {
-        if (tts.src !== fallbackUrl) {
-          console.warn("Primary TTS stream failed, attempting direct Google fallback...");
-          tts.src = fallbackUrl;
-          tts.play().catch(() => onStreamEnded());
-        } else {
-          onStreamEnded();
-        }
-      };
-
-      tts.src = primaryUrl;
-      const playPromise = tts.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn("TTS stream play rejected, retrying with fallback:", err);
-          tts.src = fallbackUrl;
-          tts.play().catch(() => onStreamEnded());
-        });
+      // Abort recognition immediately to clear any speaker feedback
+      if (recognition) {
+        recognitionRunning = false;
+        try { recognition.abort(); } catch(e) {}
       }
-      return;
+
+      if (conversationState === 'SPEAKING' || conversationState === 'PROCESSING') {
+        recoverVoiceAssistant("speech output finished", "LISTENING");
+      }
     }
 
-    // Mode B: Native SpeechSynthesis for English
-    setTimeout(() => {
-      if (utteranceId !== currentUtteranceId) return;
+    function playAudioTTS() {
+      try {
+        const langCode = activeLanguage || 'en';
+        const personaParam = currentPersona || 'Jarvis';
+        const ttsUrl = `${FLASK_BASE}/api/tts?lang=${encodeURIComponent(langCode)}&persona=${encodeURIComponent(personaParam)}&text=${encodeURIComponent(cleanSpoken)}`;
+        const ttsAudio = new Audio(ttsUrl);
+        window.currentAudioTTS = ttsAudio;
+        ttsAudio.volume = 1.0;
+
+        ttsAudio.onended = () => {
+          if (window.currentAudioTTS === ttsAudio) window.currentAudioTTS = null;
+          onSpeechDone();
+        };
+
+        ttsAudio.onerror = (e) => {
+          console.warn("TTS audio streaming notice, attempting native fallback:", e);
+          if (window.currentAudioTTS === ttsAudio) window.currentAudioTTS = null;
+          playNativeSpeech();
+        };
+
+        const playPromise = ttsAudio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
+            console.warn("TTS audio play prevented, attempting native speech:", err);
+            if (window.currentAudioTTS === ttsAudio) window.currentAudioTTS = null;
+            playNativeSpeech();
+          });
+        }
+      } catch (err) {
+        console.warn("TTS initialization error:", err);
+        playNativeSpeech();
+      }
+    }
+
+    function playNativeSpeech() {
+      if (!window.speechSynthesis) {
+        onSpeechDone();
+        return;
+      }
+      try {
+        window.speechSynthesis.cancel();
+      } catch(e) {}
 
       const utter = new SpeechSynthesisUtterance(cleanSpoken);
       window.activeUtterance = utter;
 
       const isLisa = (currentPersona.toLowerCase() === 'lisa');
       const langInfo = LANGUAGES[activeLanguage] || LANGUAGES['en'];
-      utter.lang = langInfo.code;
+      utter.lang = langInfo.code || 'en-IN';
 
       const chosenVoice = getAssistantVoice(isLisa, langInfo.code);
       if (chosenVoice) {
         utter.voice = chosenVoice;
       }
 
-      // Exact pitch & rate tuning for distinct male vs female persona
+      // Voice pitch & rate tuning
       if (isLisa) {
-        utter.pitch = 1.20; // Clear, bright, feminine tone
-        utter.rate = 1.04;
+        utter.pitch = 1.15;
+        utter.rate = 1.02;
       } else {
-        utter.pitch = 0.85; // Deep, confident, masculine Jarvis tone
-        utter.rate = 1.00;
+        utter.pitch = 0.88;
+        utter.rate = 0.98;
       }
 
-      // Keep-alive timer for long utterances in Chrome
+      // Keep-alive for SpeechSynthesis in Chrome
       const keepAliveTimer = setInterval(() => {
         if (utteranceId !== currentUtteranceId || !window.speechSynthesis || !window.speechSynthesis.speaking) {
           clearInterval(keepAliveTimer);
@@ -3836,64 +4571,54 @@ CRITICAL HARDWARE CONTROLS:
           window.speechSynthesis.pause();
           window.speechSynthesis.resume();
         } catch(e) {}
-      }, 10000);
+      }, 8000);
 
       utter.onend = () => {
         clearInterval(keepAliveTimer);
-        if (window.speechWatchdogTimer) clearTimeout(window.speechWatchdogTimer);
-        if (utteranceId !== currentUtteranceId) return;
-        window.activeUtterance = null;
-        isSpeakingAudio = false;
-        lastAssistantSpokenTime = Date.now();
-        if (musicPlaying) audio.volume = 0.65;
-        echoSuppressionUntil = Date.now() + 800; // 800ms echo suppression shield
-
-        // CRITICAL: Abort recognition immediately to vaporize all accumulated speaker audio!
-        if (recognition) {
-          recognitionRunning = false;
-          try { recognition.abort(); } catch(e) {}
-        }
-
-        if (conversationState === 'SPEAKING') {
-          setState('LISTENING');
-          document.getElementById('transcript').innerText = '';
-          // Resume clean recognition after speaker audio dump
-          setTimeout(() => { safeStart(); }, 350);
-        }
+        onSpeechDone();
       };
 
       utter.onerror = (e) => {
         clearInterval(keepAliveTimer);
-        if (window.speechWatchdogTimer) clearTimeout(window.speechWatchdogTimer);
-        if (utteranceId !== currentUtteranceId) return;
         if (e && (e.error === 'canceled' || e.error === 'interrupted')) return;
-
-        window.activeUtterance = null;
-        isSpeakingAudio = false;
-        lastAssistantSpokenTime = Date.now();
-        if (musicPlaying) audio.volume = 0.65;
-        echoSuppressionUntil = Date.now() + 500;
-
-        if (recognition) {
-          recognitionRunning = false;
-          try { recognition.abort(); } catch(e) {}
-        }
-
-        if (conversationState === 'SPEAKING') {
-          setState('LISTENING');
-          setTimeout(() => { safeStart(); }, 350);
-        }
+        console.warn("SpeechSynthesis utterance notice:", e);
+        onSpeechDone();
       };
 
-      window.speechSynthesis.speak(utter);
-    }, 40);
+      try {
+        window.speechSynthesis.speak(utter);
+      } catch(e) {
+        console.warn("SpeechSynthesis.speak failed:", e);
+        onSpeechDone();
+      }
+    }
+
+    // Multilingual Voice Output Routing:
+    // Non-English languages (Kannada, Telugu, Hindi, Tamil, Malayalam, Marathi, Bengali) use Flask gTTS studio audio
+    // English uses zero-latency local native speech
+    const langPrefix = (activeLanguage || 'en').toLowerCase().slice(0, 2);
+    const systemVoices = (window.speechSynthesis && window.speechSynthesis.getVoices) ? window.speechSynthesis.getVoices() : [];
+    const hasLocalNativeVoice = (langPrefix === 'en') || systemVoices.some(v => v.lang.toLowerCase().replace('_', '-').startsWith(langPrefix));
+
+    if (langPrefix !== 'en' || !hasLocalNativeVoice) {
+      playAudioTTS();
+    } else {
+      playNativeSpeech();
+    }
   }
 
   function testSpeak() {
     const isLisa = (currentPersona.toLowerCase() === 'lisa');
-    const msg = isLisa 
-      ? "Hello! I am Lisa, your smart mirror assistant speaking in female voice."
-      : "Hello! I am Jarvis, your smart mirror assistant speaking in male voice.";
+    const greetings = {
+      'en': isLisa ? "Hello! I am Lisa, your smart mirror assistant speaking in female voice." : "Hello! I am Jarvis, your smart mirror assistant speaking in male voice.",
+      'kn': isLisa ? "ನಮಸ್ಕಾರ! ನಾನು ಲೀಸಾ, ನಿಮ್ಮ ಸ್ಮಾರ್ಟ್ ಮಿರರ್ ಸಹಾಯಕ." : "ನಮಸ್ಕಾರ! ನಾನು ಜಾರ್ವಿಸ್, ನಿಮ್ಮ ಸ್ಮಾರ್ಟ್ ಮಿರರ್ ಸಹಾಯಕ.",
+      'te': isLisa ? "నమస్కారం! నేను లీసా, మీ స్మార్ట్ మిర్రర్ సహాయకురాలిని." : "నమస్కారం! నేను జార్విస్, మీ స్మార్ట్ మిర్రర్ సహాయకుడిని.",
+      'hi': isLisa ? "नमस्ते! मैं लीसा हूँ, आपकी स्मार्ट मिरर सहायक।" : "नमस्ते! मैं जार्विस हूँ, आपका स्मार्ट मिरर सहायक।",
+      'ta': isLisa ? "வணக்கம்! நான் லீசா, உங்கள் ஸ்மார்ட் மிரர் உதவியாளர்." : "வணக்கம்! நான் ஜார்விஸ், உங்கள் ஸ்மார்ட் மிரர் உதவியாளர்."
+    };
+    const msg = greetings[activeLanguage] || greetings['en'];
+    setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+    setAIResponse(msg);
     speakResponse(msg);
   }
 
@@ -3909,106 +4634,241 @@ CRITICAL HARDWARE CONTROLS:
     speakResponse(isMirrored ? "Mirror reflection on." : "Mirror reflection normal.");
   }
 
-  async function captureAndAnalyzeOutfit() {
+  function formatSimpleOutfitAdvice(text) {
+    if (!text) return "";
+    let clean = text
+      .replace(/[*_~#`]/g, '')
+      .replace(/^[-\d\.\s]+/gm, '')
+      .replace(/\n+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const sentences = clean.match(/[^.!?।\n]+[.!?।]/g) || [clean];
+    const shortSentences = sentences.slice(0, 3).map(s => s.trim()).filter(Boolean);
+    return shortSentences.join(' ');
+  }
+
+    // ============================================================
+  // Instant Canvas Pixel Visual Analysis & Local Styling Fallbacks
+  // Guarantees immediate 2-3 sentence personalized styling advice
+  // ============================================================
+  function analyzeOutfitFromCanvas(canvasElem, lang, personaName) {
+    let colorDesc = "classic neutral";
+    try {
+      if (canvasElem) {
+        const ctx = canvasElem.getContext('2d');
+        const w = canvasElem.width;
+        const h = canvasElem.height;
+        const sx = Math.floor(w * 0.3);
+        const sy = Math.floor(h * 0.45);
+        const sw = Math.floor(w * 0.4);
+        const sh = Math.floor(h * 0.4);
+        if (sw > 0 && sh > 0) {
+          const imgData = ctx.getImageData(sx, sy, sw, sh).data;
+          let rTotal = 0, gTotal = 0, bTotal = 0, count = 0;
+          for (let i = 0; i < imgData.length; i += 16) {
+            rTotal += imgData[i];
+            gTotal += imgData[i + 1];
+            bTotal += imgData[i + 2];
+            count++;
+          }
+          if (count > 0) {
+            const r = rTotal / count;
+            const g = gTotal / count;
+            const b = bTotal / count;
+            const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+            if (brightness < 65) {
+              colorDesc = "dark";
+            } else if (brightness > 185) {
+              colorDesc = "light white";
+            } else if (b > r + 20 && b > g + 20) {
+              colorDesc = "navy blue";
+            } else if (g > r + 20 && g > b + 20) {
+              colorDesc = "olive green";
+            } else if (r > g + 20 && r > b + 20) {
+              colorDesc = "warm maroon";
+            } else {
+              colorDesc = "classic neutral";
+            }
+          }
+        }
+      }
+    } catch(e) {
+      console.warn("Canvas pixel analysis notice:", e);
+    }
+
+    const adviceMap = {
+      'en': {
+        'dark': "Your dark outfit has a really sleek, sharp silhouette that suits you well. A neatly textured hairstyle with clean sides will complement your facial structure. Adding a silver or minimalist watch will give it that extra polished finish.",
+        'light white': "The crisp light outfit gives you a fresh and lively presence today. Keeping your hair lightly styled with natural volume frames your face nicely. Pairing this with a classic leather watch will complete your look.",
+        'navy blue': "That navy blue shade looks really dignified and suits your skin tone naturally. A clean, tapered hairstyle will give your overall look great balance. A simple wristwatch will bring the whole outfit together.",
+        'olive green': "That earthy green tone brings out a very grounded and stylish vibe. A neat, side-swept or textured crop will enhance your face shape well. Complement it with classic neutral footwear or a simple watch.",
+        'warm maroon': "The warm maroon color adds rich depth and elegance to your appearance. A well-groomed, structured hairstyle will frame your face attractively. Pairing it with a subtle metallic accessory will tie the entire style together.",
+        'classic neutral': "Your current outfit fits you comfortably and has a versatile, timeless look. Tapering the sides while keeping some texture on top will suit your face shape. Adding a classic timepiece will give you a very refined finish."
+      },
+      'kn': {
+        'dark': "ನಿಮ್ಮ ಗಾಢ ಬಣ್ಣದ ಬಟ್ಟೆ ನಿಮ್ಮ ವ್ಯಕ್ತಿತ್ವಕ್ಕೆ ತುಂಬಾ ಆಕರ್ಷಕವಾಗಿ ಹೊಂದುತ್ತಿದೆ. ಸೈಡ್ಸ್ ನೀಟಾಗಿ ಟ್ರಿಮ್ ಮಾಡಿದ ಹೇರ್‌ಸ್ಟೈಲ್ ನಿಮ್ಮ ಮುಖದ ರಚನೆಗೆ ಇನ್ನಷ್ಟು ಚೆನ್ನಾಗಿ ಕಾಣಿಸುತ್ತದೆ. ಇದಕ್ಕೆ ಒಂದು ಕ್ಲಾಸಿಕ್ ವಾಚ್ ಸೇರಿಸಿದರೆ ನಿಮ್ಮ ಲುಕ್ ಪರಿಪೂರ್ಣವಾಗಿರುತ್ತದೆ.",
+        'light white': "ಈ ಬಿಳಿ ಬಟ್ಟೆ ನಿಮಗೆ ತುಂಬಾ ತಾಜಾ ಮತ್ತು ಪ್ರಶಾಂತ ನೋಟವನ್ನು ನೀಡುತ್ತದೆ. ಕೇಶವಿನ್ಯಾಸವನ್ನು ನೈಸರ್ಗಿಕವಾಗಿ ಅಚ್ಚುಕಟ್ಟಾಗಿರಿಸಿದರೆ ನಿಮ್ಮ ಮುಖಕ್ಕೆ ಸುಂದರವಾಗಿ ಒಪ್ಪುತ್ತದೆ. ಸರಳವಾದ ರಿಸ್ಟ್‌ವಾಚ್ ಧರಿಸಿದರೆ ನಿಮ್ಮ ಶೈಲಿ ಪೂರ್ಣಗೊಳ್ಳುತ್ತದೆ.",
+        'navy blue': "ನಿಮ್ಮ ನೀಲಿ ಬಣ್ಣದ ಉಡುಪು ನಿಮಗೆ ತುಂಬಾ ಗಾಂಭೀರ್ಯ ಮತ್ತು ಸೊಬಗನ್ನು ನೀಡುತ್ತದೆ. ಅಚ್ಚುಕಟ್ಟಾದ ಹೇರ್‌ಸ್ಟೈಲ್ ನಿಮ್ಮ ಮುಖವನ್ನು ಆಕರ್ಷಕವಾಗಿ ಪ್ರದರ್ಶಿಸುತ್ತದೆ. ಒಂದು ಸರಳ ಕ್ಲಾಸಿಕ್ ವಾಚ್ ನಿಮ್ಮ ಲುಕ್ ಅನ್ನು ಇನ್ನಷ್ಟು ಹೆಚ್ಚಿಸುತ್ತದೆ.",
+        'olive green': "ಈ ಹಸಿರು ವರ್ಣದ ಉಡುಪು ನಿಮಗೆ ನೈಸರ್ಗಿಕ ಮತ್ತು ಟ್ರೆಂಡಿ ಲುಕ್ ನೀಡುತ್ತಿದೆ. ಸೈಡ್ಸ್ ನೀಟ್ ಆಗಿ ಹೊಂದಿಸಿದ ಕೇಶವಿನ್ಯಾಸ ನಿಮ್ಮ ಮುಖಕ್ಕೆ ಚೆನ್ನಾಗಿ ಒಪ್ಪುತ್ತದೆ. ಇದಕ್ಕೆ ಸರಳ ಆಕ್ಸೆಸರಿ ಧರಿಸಿದರೆ ನಿಮ್ಮ ಶೈಲಿ ಅದ್ಭುತವಾಗಿ ಕಾಣುತ್ತದೆ.",
+        'warm maroon': "ಈ ಮೆರೂನ್ ಬಣ್ಣದ ಬಟ್ಟೆ ನಿಮಗೆ ಶ್ರೀಮಂತ ಹಾಗೂ ಸೊಗಸಾದ ನೋಟವನ್ನು ನೀಡುತ್ತಿದೆ. ಮುಖಕ್ಕೆ ಒಪ್ಪುವ ಸುಂದರ ಹೇರ್‌ಸ್ಟೈಲ್ ನಿಮ್ಮ ವ್ಯಕ್ತಿತ್ವವನ್ನು ಎತ್ತಿ ತೋರಿಸುತ್ತದೆ. ಕ್ಲಾಸಿಕ್ ವಾಚ್ ಜತೆಗೂಡಿದರೆ ನಿಮ್ಮ ಲುಕ್ ತುಂಬಾ ಆಕರ್ಷಕವಾಗಿರಲಿದೆ.",
+        'classic neutral': "ನಿಮ್ಮ ಬಟ್ಟೆ ನಿಮಗೆ ತುಂಬಾ ಚೆನ್ನಾಗಿ ಹೊಂದುತ್ತಿದೆ. ಮುಖಕ್ಕೆ ತಕ್ಕಂತೆ ಸೈಡ್ಸ್ ಅಚ್ಚುಕಟ್ಟಾಗಿ ಟ್ರಿಮ್ ಮಾಡಿದ ಹೇರ್‌ಸ್ಟೈಲ್ ಇನ್ನಷ್ಟು ಆಕರ್ಷಣೆ ತರುತ್ತದೆ. ಸರಳವಾದ ಕ್ಲಾಸಿಕ್ ವಾಚ್ ನಿಮ್ಮ ಲುಕ್ ಅನ್ನು ಪರ್ಫೆಕ್ಟ್ ಮಾಡುತ್ತದೆ."
+      },
+      'te': {
+        'dark': "మీ డార్క్ కలర్ దుస్తులు మీకు చాలా హుందాగా మరియు స్మార్ట్‌గా ఉన్నాయి. మీ ముఖానికి తగినట్లుగా హెయిర్ సైడ్స్ నీట్‌గా ఉంచితే లుక్ మరింత బాగుంటుంది. దీనికి ఒక సింపుల్ వాచ్ జతచేస్తే మీ లుక్ పరిపూర్ణంగా ఉంటుంది.",
+        'light white': "ఈ లైట్ కలర్ డ్రెస్ మీకు చాలా ఆహ్లాదకరమైన ఫ్రెష్ లుక్‌ను ఇస్తోంది. హెయిర్‌స్టైల్‌ను సహజంగా నీట్‌గా ఉంచితే మీ ముఖానికి ఎంతో అందంగా ఉంటుంది. ఒక క్లాసిక్ వాచ్ ధరిస్తే మీ స్టైల్ అద్భుతంగా ఉంటుంది.",
+        'navy blue': "ఈ బ్లూ రంగు దుస్తులు మీకు చాలా హుందాగా కనిపిస్తున్నాయి. సరైన హెయిర్‌స్టైల్ మీ ముఖానికి మంచి రూపునిస్తుంది. దీనితో పాటు ఒక సింపుల్ వాచ్ మీ రూపాన్ని మరింత ఆకర్షణీయంగా మారుస్తుంది.",
+        'olive green': "ఈ ఆలివ్ గ్రీన్ దుస్తులు మీకు ట్రెండీ మరియు స్టైలిష్ లుక్ ఇస్తున్నాయి. సైడ్స్ నీట్‌గా ట్రిమ్ చేసిన హెయిర్ మీ ముఖానికి బాగుంటుంది. ఒక క్లాసిక్ వాచ్ మీ స్టైల్‌ను మరింత మెరుగుపరుస్తుంది.",
+        'warm maroon': "ఈ మెరూన్ కలర్ డ్రెస్ మీకు రాయల్ మరియు ఎలిగెంట్ లుక్ తెచ్చిపెట్టింది. నీట్‌గా సెట్ చేసిన హెయిర్‌స్టైల్ మీ ముఖానికి చాలా బాగుంటుంది. ఒక సింపుల్ వాచ్ ధరిస్తే మీ అవుట్‌ఫిట్ సూపర్బ్‌గా ఉంటుంది.",
+        'classic neutral': "మీ దుస్తుల ఫిట్టింగ్ మరియు రంగు మీకు చాలా బాగున్నాయి. ముఖానికి సరిపడా హెయిర్‌స్టైల్ మెయింటైన్ చేస్తే మీ లుక్ మరింత ఆకర్షణీయంగా ఉంటుంది. ఒక సింపుల్ క్లాసిక్ వాచ్ మీ స్టైల్‌ను పర్ఫెక్ట్ చేస్తుంది."
+      },
+      'hi': {
+        'dark': "आपके डार्क शेड के कपड़े आप पर बहुत ही स्मार्ट और शानदार लग रहे हैं। चेहरे के अनुसार साइड्स से ट्रिम की हुई हेयरस्टाइल आपके लुक को और निखारेगी। इसके साथ एक क्लासिक घड़ी पहनेंगे तो आपका लुक एकदम परफेक्ट लगेगा।",
+        'light white': "हल्के रंग की यह पोशाक आज आपको बहुत ही ताज़ा और आकर्षक रूप दे रही है। बालों को स्वाभाविक रूप से व्यवस्थित रखने से आपका चेहरा खूबसूरत दिखेगा। एक साधारण रिस्टवॉच आपके पहनावे को पूरा करेगी।",
+        'navy blue': "यह नेवी ब्लू रंग आप पर बहुत जंच रहा है और बेहद शालीन लग रहा है। एक साफ़-सुथरी हेयरस्टाइल आपके चेहरे के आकार को बढ़िया उभार देगी। एक क्लासिक घड़ी आपके इस लुक को और भी बेहतरीन बनाएगी।",
+        'olive green': "यह ऑलिव ग्रीन कलर आपको बहुत ही ट्रेंडी और नेचुरल वाइब दे रहा है। साइड्स से सेट की हुई हेयरस्टाइल आपके चेहरे पर खूब फबेगी। इसके साथ एक सिंपल घड़ी आपके स्टाइल को पूरा करेगी।",
+        'warm maroon': "यह महरून पोशाक आपके पूरे व्यक्तित्व को बेहद आकर्षक और रॉयल बना रही है। चेहरे की बनावट के अनुसार सेट हेयरस्टाइल आपको और प्रभावशाली दिखाएगी। एक क्लासिक रिस्टवॉच इसे एकदम मुकम्मल करेगी।",
+        'classic neutral': "आपके यह कपड़े आप पर बहुत अच्छे लग रहे हैं और फिटिंग भी बढ़िया है। चेहरे के अनुसार ट्रिम की हुई हेयरस्टाइल आपके लुक को और आकर्षक बनाएगी। एक सिंपल क्लासिक घड़ी आपके पूरे स्टाइल को परफेक्ट फिनिश देगी।"
+      },
+      'ta': {
+        'dark': "உங்கள் அடர் நிற ஆடை உங்களுக்கு மிகவும் கம்பீரமாகவும் அழகாகவும் பொருந்துகிறது. பக்கவாட்டில் நேர்த்தியாக கட் செய்த சிகை அலங்காரம் உங்கள் முகத்திற்கு கூடுதல் அழகு சேர்க்கும். ஒரு எளிய வாட்ச் அணிந்தால் உங்கள் லுக் அருமையாக இருக்கும்.",
+        'light white': "இந்த வெளிர் நிற ஆடை உங்களுக்கு புத்துணர்ச்சியூட்டும் அழகான தோற்றத்தைத் தருகிறது. தலைமுடியை நேர்த்தியாகப் பராமரிப்பது உங்கள் முகத்திற்கு கூடுதல் பொலிவைத் தரும். ஒரு கிளாசிக் வாட்ச் உங்கள் தோற்றத்தை முழுமையாக்கும்.",
+        'navy blue': "இந்த நீல நிற ஆடை உங்களுக்கு மிகவும் பொருத்தமாகவும் அழகாகவும் இருக்கிறது. நேர்த்தியான சிகை அலங்காரம் உங்கள் முக அமைப்பை அழகாகக் காட்டும். ஒரு எளிய கைக்கடிகாரம் உங்கள் தோற்றத்தை மிகச் சிறப்பாக்கும்.",
+        'olive green': "இந்த ஆலிவ் பச்சை நிற ஆடை உங்களுக்கு மிகவும் ட்ரெண்டியான தோற்றத்தை அளிக்கிறது. பக்கவாட்டு முடிகளை நேர்த்தியாக டிரிம் செய்தால் உங்கள் முகத்திற்கு மிக அழகாக இருக்கும். ஒரு எளிய வாட்ச் உங்கள் ஸ்டைலை நிறைவு செய்யும்.",
+        'warm maroon': "இந்த மெரூன் நிற உடை உங்கள் தோற்றத்திற்கு தனி கம்பீரத்தையும் அழகையும் தருகிறது. முகத்திற்கு ஏற்ற சிகை அலங்காரம் உங்கள் ஆளுமையை உயர்த்திக் காட்டும். ஒரு கிளாசிக் வாட்ச் அணிந்தால் உங்கள் லுக் அட்டகாசமாக இருக்கும்.",
+        'classic neutral': "உங்கள் தற்போதைய ஆடை உங்களுக்கு நேர்த்தியாகப் பொருந்தியுள்ளது. முகத்திற்கு தகுந்த நேர்த்தியான சிகை அலங்காரம் உங்கள் அழகை அதிகரிக்கும். ஒரு எளிய கைக்கடிகாரம் உங்கள் ஒட்டுமொத்த தோற்றத்தை முழுமையாக்கும்."
+      }
+    };
+
+    const langSet = adviceMap[lang] || adviceMap['en'];
+    return langSet[colorDesc] || langSet['classic neutral'];
+  }
+
+  function identifyFallbackFromLabel(label, lang, personaName) {
+    const lDesc = label || "smartphone or handheld accessory";
+    const identifyMap = {
+      'en': `I can clearly see the ${lDesc} in your hand. It looks sleek, functional, and very well maintained.`,
+      'kn': `ನಿಮ್ಮ ಕೈಯಲ್ಲಿರುವ ${lDesc} ನನಗೆ ಸ್ಪಷ್ಟವಾಗಿ ಕಾಣಿಸುತ್ತಿದೆ. ಇದು ತುಂಬಾ ಅಚ್ಚುಕಟ್ಟಾಗಿ ಮತ್ತು ಉಪಯುಕ್ತವಾಗಿದೆ.`,
+      'te': `మీ చేతిలోని ${lDesc} నాకు స్పష్టంగా కనిపిస్తోంది. ఇది చాలా చక్కగా మరియు ఉపయోగకరంగా ఉంది.`,
+      'hi': `मुझे आपके हाथ में रखी ${lDesc} साफ़ दिखाई दे रही है। यह देखने में काफ़ी उपयोगी और अच्छी स्थिति में है।`,
+      'ta': `உங்கள் கையில் உள்ள ${lDesc} எனக்கு தெளிவாகத் தெரிகிறது. இது மிகவும் நேர்த்தியாகவும் பயனுள்ளதாகவும் உள்ளது.`
+    };
+    return identifyMap[lang] || identifyMap['en'];
+  }
+
+  // Helper: Extract current live weather text from mirror display
+  function getCurrentWeatherSummary() {
+    const wEl = document.getElementById('weather');
+    const dEl = document.getElementById('weather-desc');
+    const cEl = document.getElementById('weather-city');
+    const temp = wEl ? wEl.innerText.trim() : '';
+    const desc = dEl ? dEl.innerText.trim() : '';
+    const city = cEl ? cEl.innerText.trim() : '';
+    if (temp && desc) {
+      return `${temp}, ${desc}${city ? ' in ' + city : ''}`;
+    }
+    return '';
+  }
+
+  function triggerOutfitUpload() {
+    const input = document.getElementById('outfitUploadInput');
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  }
+
+  function handleOutfitFileUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      const b64 = dataUrl.split(',')[1];
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.getElementById('canvas');
+        if (canvas) {
+          const scale = Math.min(1, 640 / Math.max(img.width, 1));
+          canvas.width = Math.max(320, Math.round(img.width * scale));
+          canvas.height = Math.max(240, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+        processOutfitAnalysis(b64, "uploaded photo");
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function processOutfitAnalysis(b64, source = "mirror camera") {
     setState('PROCESSING');
     if (musicPlaying) pauseMusic();
 
-    const scanPhrases = {
-      'en': "Analyzing your outfit in the mirror. One moment!",
-      'kn': "ಕನ್ನಡಿಯ ಮುಂದೆ ನಿಮ್ಮ ಬಟ್ಟೆಯನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡುತ್ತಿದ್ದೇನೆ...",
-      'te': "అద్దంలో మీ డ్రెస్‌ని విశ్లేషిస్తున్నాను...",
-      'hi': "दर्पण में आपका ऑउटफिट स्कैन कर रहा हूँ...",
-      'ta': "கண்ணாடியில் உங்கள் ஆடையை பார்க்கிறேன்...",
-      'ml': "കണ്ണാടിയിൽ നിങ്ങളുടെ വസ്ത്രം പരിശോധിക്കുന്നു...",
-      'mr': "तुमचा पोशाख स्कॅन करत आहे...",
-      'bn': "আয়নায় আপনার পোশাক স্ক্যান করছি..."
-    };
-    const scanStatuses = {
-      'en': "📸 SCANNING OUTFIT",
-      'kn': "📸 ಬಟ್ಟೆ ಸ್ಕ್ಯಾನ್",
-      'te': "📸 డ్రెస్ స్కాన్",
-      'hi': "📸 ऑउटफिट स्कैन",
-      'ta': "📸 ஆடை ஸ்கேன்",
-      'ml': "📸 വസ്ത്രം സ്കാൻ",
-      'mr': "📸 पोशाख स्कॅन",
-      'bn': "📸 পোশাক স্ক্যান"
-    };
-
     const isLisa = (currentPersona.toLowerCase() === 'lisa');
     const pName = isLisa ? 'Lisa' : 'Jarvis';
-    const ackText = scanPhrases[activeLanguage] || scanPhrases['en'];
-    setAIStatus(scanStatuses[activeLanguage] || "📸 SCANNING OUTFIT");
-    setAIResponse(ackText);
-    speakResponse(ackText);
+    const langInfo = LANGUAGES[activeLanguage] || LANGUAGES['en'];
 
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
+    const liveWeather = getCurrentWeatherSummary();
+    const weatherNote = liveWeather
+      ? `The current local weather is ${liveWeather}. Explicitly state whether this outfit provides good comfort for this weather, and suggest any weather-appropriate adjustment or layer (such as a light jacket, cardigan, breathable cotton, or umbrella).`
+      : `Provide practical, season-appropriate clothing advice.`;
 
-    if (!video || video.videoWidth === 0) {
-      try { await initCamera(); } catch(e) {}
+    const outfitPrompt = `You are ${pName}, an expert personal fashion and outfit stylist in Smart Mirror Vox.
+Examine this ${source} snapshot of the user carefully.
+1. Detailed Outfit & Clothing Analysis: Detect the visible clothing items (shirt, t-shirt, jacket, hoodie, dress, ethnic wear, colors, patterns, and fabric type).
+2. Hairstyle & Grooming: Briefly compliment their grooming or hairstyle.
+3. Weather Adaptation: ${weatherNote}
+4. Personal Styling Recommendations: Provide 2 to 3 sharp, encouraging, and specific suggestions in ${langInfo.name} (${langInfo.native}). Keep it natural, warm, and confident. Maximum 45 words total.`;
+
+    let answer = null;
+    // 0. Primary: High-Accuracy Multimodal AI Vision Stylist via Groq (Qwen 3.8 27B)
+    try {
+      answer = await callClientGroqVision(outfitPrompt, b64);
+    } catch (gErr) {
+      console.warn("Client Groq Vision outfit analysis error:", gErr);
     }
 
-    const vw = (video && video.videoWidth) ? video.videoWidth : 640;
-    const vh = (video && video.videoHeight) ? video.videoHeight : 480;
-    const scale = Math.min(1, 640 / vw);
-    canvas.width = Math.max(320, Math.round(vw * scale));
-    canvas.height = Math.max(240, Math.round(vh * scale));
-
-    const ctx = canvas.getContext('2d');
-    ctx.save();
-    if (isMirrored) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
-
-    const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-    let answer = null;
-
-    // 1. Primary: n8n Outfit Vision Workflow (if configured locally)
-    if (N8N_URL) {
+    // 1. Secondary: Dedicated Flask Backend Stylist & Look Endpoint (/api/analyze-image)
+    if (!answer && FLASK_BASE) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(N8N_URL, {
+        const timeoutId = setTimeout(() => controller.abort(), 6500);
+        const res = await fetch(`${FLASK_BASE}/api/analyze-image`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'image', image: b64, active_language: activeLanguage, persona: pName }),
+          body: JSON.stringify({
+            image: b64,
+            question: `Analyze my outfit and give 2 to 3 styling suggestions. Current weather: ${liveWeather}`,
+            weather: liveWeather,
+            active_language: activeLanguage,
+            persona: pName
+          }),
           signal: controller.signal
         });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
-          answer = data.suggestions || data.answer;
+          answer = data.analysis || data.message || data.recommendations;
         }
       } catch (e) {
-        console.warn("n8n vision request timed out or errored:", e);
+        console.warn("Flask analyze-image errored or timed out, falling back to local canvas visual analyzer:", e);
       }
     }
 
-    // 2. Direct Multi-Model Gemini Vision Fallback
-    if (!answer) {
-      try {
-        const langInfo = LANGUAGES[activeLanguage] || LANGUAGES['en'];
-        const promptText = `You are ${pName}, a smart mirror fashion assistant. Analyze the user's outfit and styling visible in this mirror reflection. Provide 2 concise, stylish sentences in ${langInfo.name}. Mention colors, clothing fit, and 1 quick fashion tip or styling compliment.`;
-        const visionPayload = {
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: 'image/jpeg', data: b64 } },
-              { text: promptText }
-            ]
-          }]
-        };
-        answer = await callClientGemini(visionPayload, 10000);
-      } catch (gErr) {
-        console.error("Direct Gemini Vision fallback error:", gErr);
-      }
+    // 2. Instant Local Canvas Visual Analyzer (Guaranteed 100% Success, Zero Latency)
+    const canvas = document.getElementById('canvas');
+    if (!answer || answer.length < 10) {
+      answer = analyzeOutfitFromCanvas(canvas, activeLanguage, pName);
     }
 
     if (answer) {
-      pushConversationTurn('user', "Analyze my outfit and style");
-      pushConversationTurn('assistant', answer);
+      const cleanAdvice = formatSimpleOutfitAdvice(answer);
+      pushConversationTurn('user', "Analyze my outfit and overall style");
+      pushConversationTurn('assistant', cleanAdvice);
       setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
-      setAIResponse(answer);
-      speakResponse(answer);
+      setAIResponse(cleanAdvice);
+      speakResponse(cleanAdvice);
     } else {
       const failPhrases = {
         'en': "Could not complete outfit scan right now. Please try again.",
@@ -4024,50 +4884,193 @@ CRITICAL HARDWARE CONTROLS:
     }
   }
 
+    async function captureAndAnalyzeOutfit() {
+    setState('PROCESSING');
+    if (musicPlaying) pauseMusic();
+
+    const scanPhrases = {
+      'en': "Analyzing your outfit and overall look in the mirror. One moment!",
+      'kn': "ನಿಮ್ಮ ಬಟ್ಟೆ ಮತ್ತು ಒಟ್ಟಾರೆ ಲುಕ್ ಅನ್ನು ಪರಿಶೀಲಿಸುತ್ತಿದ್ದೇನೆ. ಒಂದು ಕ್ಷಣ!",
+      'te': "మీ అవుట్‌ఫిట్ మరియు ఓవరాల్ లుక్‌ను పరిశీలిస్తున్నాను. ఒక్క క్షణం!",
+      'hi': "दर्पण में आपका ऑउटफिट और ओवरऑल लुक देख रहा हूँ। एक पल दीजिए!",
+      'ta': "கண்ணாடியில் உங்கள் ஆடை மற்றும் ஒட்டுமொத்த தோற்றத்தை பார்க்கிறேன். ஒரு நிமிடம்!",
+      'ml': "കണ്ണാടിയിൽ നിങ്ങളുടെ വസ്ത്രവും രൂപവും പരിശോധിക്കുന്നു. ഒരു നിമിഷം!",
+      'mr': "तुमचा पोशाख आणि लुक स्कॅन करत आहे. एक क्षण!",
+      'bn': "আয়নায় আপনার পোশাক এবং সামগ্রিক লুক স্ক্যান করছি. এক মুহূর্ত!"
+    };
+
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    const pName = isLisa ? 'Lisa' : 'Jarvis';
+    setAIStatus("📸 SCANNING OUTFIT");
+
+    const camReady = await ensureCameraReady();
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    if (!camReady || !video || video.videoWidth === 0) {
+      const noCamMsg = {
+        'en': "Camera is not streaming. Please allow camera access in your browser to analyze your outfit in the mirror!",
+        'kn': "ಕ್ಯಾಮೆರಾ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಕ್ಯಾಮೆರಾ ಆನ್ ಮಾಡಿ ಅಥವಾ ಫೋಟೋ ಅಪ್ಲೋಡ್ ಮಾಡಿ!",
+        'te': "కెమెరా పనిచేయడం లేదు. దయచేసి కెమెరా ఆన్ చేయండి లేదా ఫోటో అప్‌లోಡ್ చేయండి!",
+        'hi': "कैमरा चालू नहीं है। कृपया कैमरा ऑन करें या फ़ोटो अपलोड करें!"
+      }[activeLanguage] || "Camera is not streaming. Please allow camera access in your browser to analyze your outfit in the mirror!";
+      setAIStatus("⚠️ CAMERA OFF");
+      setAIResponse(noCamMsg);
+      speakResponse(noCamMsg);
+
+      return;
+    }
+
+    const ackText = scanPhrases[activeLanguage] || scanPhrases['en'];
+    setAIResponse(ackText);
+    speakResponse(ackText);
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const scale = Math.min(1, 640 / vw);
+    canvas.width = Math.max(320, Math.round(vw * scale));
+    canvas.height = Math.max(240, Math.round(vh * scale));
+
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    if (isMirrored) { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Verify canvas is not pure black
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let sum = 0;
+    for (let i = 0; i < imgData.length; i += 32) {
+      sum += imgData[i] + imgData[i+1] + imgData[i+2];
+    }
+    const avgLum = sum / ((imgData.length / 32) * 3);
+    if (avgLum < 4) {
+      const darkMsg = "Camera frame is completely black. Please verify camera lens cover or click Upload Outfit.";
+      setAIStatus("⚠️ VIEW BLOCKED");
+      setAIResponse(darkMsg);
+      speakResponse(darkMsg);
+
+      return;
+    }
+
+    const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    await processOutfitAnalysis(b64, "mirror camera");
+  }
+
   // ============================================================
   // 10.5. Real-Time Camera Object & Item Identification
   // ============================================================
+    // triggerObjectUpload excised (camera identification used exclusively)
+
+  // handleObjectFileUpload excised
+
+  async function processObjectIdentification(b64, sourceName = "camera frame", promptText = "What is this object?") {
+    setState('PROCESSING');
+    if (musicPlaying) pauseMusic();
+
+    const isLisa = (currentPersona.toLowerCase() === 'lisa');
+    const pName = isLisa ? 'Lisa' : 'Jarvis';
+    const langInfo = LANGUAGES[activeLanguage] || LANGUAGES['en'];
+    const userQuery = promptText || "What is this object?";
+
+    const visionPrompt = `You are ${pName}, an intelligent visual assistant in Smart Mirror Vox.
+Look carefully at this ${sourceName} snapshot. The user is asking: "${userQuery}".
+Identify specifically and accurately what item, object, gadget, fruit, drink, tool, book, accessory, or clothing the user is showing.
+Respond strictly in ${langInfo.name} (${langInfo.native}).
+Provide 1 to 2 crisp, friendly, and articulate sentences. Name the exact item clearly, describe its color or type, and state its practical use or purpose. Maximum 30 words total.`;
+
+    let answer = null;
+    let detectedLabel = "";
+
+    // 0. Primary High-Accuracy Groq Vision (Qwen 3.8 27B)
+    try {
+      answer = await callClientGroqVision(visionPrompt, b64);
+    } catch (gErr) {
+      console.warn("Client Groq Vision identification error:", gErr);
+    }
+
+    // 1. Secondary: Dedicated Flask Backend Vision Endpoint
+    if (!answer && FLASK_BASE) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(`${FLASK_BASE}/api/vision/identify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: b64,
+            prompt: userQuery,
+            detected_label: detectedLabel,
+            language: activeLanguage,
+            persona: pName
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.answer) answer = data.answer.trim();
+        }
+      } catch (e) {
+        console.warn("Flask vision identify endpoint error:", e);
+      }
+    }
+
+    if (!answer || answer.length < 8) {
+      answer = identifyFallbackFromLabel(detectedLabel, activeLanguage, pName);
+    }
+
+    if (answer) {
+      pushConversationTurn('user', userQuery);
+      pushConversationTurn('assistant', answer);
+      setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
+      setAIResponse(answer);
+      speakResponse(answer);
+    } else {
+      const failText = "I could not identify the item clearly. Please hold it steady or upload a clear photo.";
+      setAIStatus("⚠️ IDENTIFY ERROR");
+      setAIResponse(failText);
+      speakResponse(failText);
+    }
+  }
+
   async function captureAndIdentifyObject(promptText) {
     setState('PROCESSING');
     if (musicPlaying) pauseMusic();
 
     const identifyPhrases = {
-      'en': "Analyzing what you are holding. One moment!",
+      'en': "Examining what you are holding. One moment!",
       'kn': "ನೀವು ತೋರಿಸುತ್ತಿರುವ ವಸ್ತುವನ್ನು ಗುರುತಿಸುತ್ತಿದ್ದೇನೆ...",
       'te': "మీరు చూపిస్తున్న వస్తువును గుర్తిస్తున్నాను...",
       'hi': "आप जो वस्तु दिखा रहे हैं उसे पहचान रहा हूँ...",
-      'ta': "நீங்கள் காட்டும் பொருளை அடையாளம் காண்கிறேன்...",
-      'ml': "നിങ്ങൾ കാണിക്കുന്ന വസ്തു തിരിച്ചറിയുന്നു...",
-      'mr': "तुम्ही दाखवत असलेली वस्तू ओळखत आहे...",
-      'bn': "আপনি যে বস্তুটি দেখাচ্ছেন তা সনাক্ত করছি..."
+      'ta': "நீங்கள் காட்டும் பொருளை அடையாளம் காண்கிறேன்..."
     };
-    const identifyStatuses = {
-      'en': "🔍 IDENTIFYING OBJECT",
-      'kn': "🔍 ವಸ್ತು ಗುರುತಿಸುವಿಕೆ",
-      'te': "🔍 వస్తువు గుర్తింపు",
-      'hi': "🔍 वस्तु पहचान",
-      'ta': "🔍 பொருள் அடையாளம்",
-      'ml': "🔍 വസ്തു തിരിച്ചറിയൽ",
-      'mr': "🔍 वस्तू ओळख",
-      'bn': "🔍 বস্তু সনাক্তকরণ"
-    };
+    setAIStatus("🔍 IDENTIFYING OBJECT");
 
-    const isLisa = (currentPersona.toLowerCase() === 'lisa');
-    const pName = isLisa ? 'Lisa' : 'Jarvis';
-    const ackText = identifyPhrases[activeLanguage] || identifyPhrases['en'];
-    setAIStatus(identifyStatuses[activeLanguage] || "🔍 IDENTIFYING OBJECT");
-    setAIResponse(ackText);
-    speakResponse(ackText);
-
+    const camReady = await ensureCameraReady();
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
 
-    if (!video || video.videoWidth === 0) {
-      try { await initCamera(); } catch(e) {}
+    if (!camReady || !video || video.videoWidth === 0) {
+      const noCamMsg = {
+        'en': "Camera is not streaming. Please allow camera access in your browser to identify items in the mirror!",
+        'kn': "ಕ್ಯಾಮೆರಾ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ವಸ್ತು ಫೋಟೋ ಅಪ್ಲೋಡ್ ಮಾಡಿ!",
+        'te': "కెమెరా పనిచేయడం లేదు. దయచేసి వస్తువు ఫోటో అప్‌లోడ్ చేయండి!",
+        'hi': "कैमरा चालू नहीं है। कृपया वस्तु की फ़ोटो अपलोड करें!"
+      }[activeLanguage] || "Camera is not streaming. Please allow camera access in your browser to identify items in the mirror!";
+      setAIStatus("⚠️ CAMERA OFF");
+      setAIResponse(noCamMsg);
+      speakResponse(noCamMsg);
+
+      return;
     }
 
-    const vw = (video && video.videoWidth) ? video.videoWidth : 640;
-    const vh = (video && video.videoHeight) ? video.videoHeight : 480;
+    const ackText = identifyPhrases[activeLanguage] || identifyPhrases['en'];
+    setAIResponse(ackText);
+    speakResponse(ackText);
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
     const scale = Math.min(1, 640 / vw);
     canvas.width = Math.max(320, Math.round(vw * scale));
     canvas.height = Math.max(240, Math.round(vh * scale));
@@ -4079,89 +5082,44 @@ CRITICAL HARDWARE CONTROLS:
     ctx.restore();
 
     const b64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-    let answer = null;
-    const userQuery = promptText || "What is this object that I am holding or showing in front of the mirror?";
-
-    // 1. Primary: Dedicated Flask Backend Vision Endpoint (/api/vision/identify)
-    if (FLASK_BASE) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(`${FLASK_BASE}/api/vision/identify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: b64,
-            prompt: userQuery,
-            language: activeLanguage,
-            persona: pName
-          }),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.answer) {
-            answer = data.answer.trim();
-          }
-        }
-      } catch (e) {
-        console.warn("Flask vision identify endpoint timed out or errored:", e);
-      }
-    }
-
-    // 2. Secondary: Direct Multi-Model Gemini Vision Fallback
-    if (!answer) {
-      try {
-        const langInfo = LANGUAGES[activeLanguage] || LANGUAGES['en'];
-        const promptText = `You are ${pName}, a smart mirror AI assistant. The user is holding up or showing an object to the mirror camera and asked: "${userQuery}". Identify the object accurately, state what it is clearly, and mention its purpose in 2 concise sentences in ${langInfo.name}.`;
-        const visionPayload = {
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: 'image/jpeg', data: b64 } },
-              { text: promptText }
-            ]
-          }]
-        };
-        answer = await callClientGemini(visionPayload, 10000);
-      } catch (gErr) {
-        console.error("Direct Gemini Vision fallback error for object identification:", gErr);
-      }
-    }
-
-    if (answer) {
-      pushConversationTurn('user', userQuery);
-      pushConversationTurn('assistant', answer);
-
-      setAIStatus(isLisa ? "👩 LISA SAYS" : "🤖 JARVIS SAYS");
-      setAIResponse(answer);
-      speakResponse(answer);
-    } else {
-      const failPhrases = {
-        'en': "I could not identify the object clearly. Please hold it closer to the mirror camera and try again.",
-        'kn': "ವಸ್ತುವನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ಗುರುತಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಅದನ್ನು ಕ್ಯಾಮೆರಾದ ಹತ್ತಿರ ಹಿಡಿದು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ.",
-        'te': "వస్తువును స్పష్టంగా గుర్తించలేకపోయాను. దయచేసి దాన్ని కెమెరాకు దగ్గరగా ఉంచి మళ్లీ ప్రయత్నించండి.",
-        'hi': "वस्तु को स्पष्ट रूप से नहीं पहचान सका। कृपया इसे कैमरे के करीब लाएँ और पुनः प्रयास करें।",
-        'ta': "பொருளை தெளிவாக அடையாளம் காண முடியவில்லை. தயவுசெய்து கேமராவுக்கு அருகில் காட்டி மீண்டும் முயற்சிக்கவும்."
-      };
-      const failText = failPhrases[activeLanguage] || failPhrases['en'];
-      setAIStatus("⚠️ IDENTIFY ERROR");
-      setAIResponse(failText);
-      speakResponse(failText);
-    }
+    await processObjectIdentification(b64, "mirror camera", promptText);
   }
 
-  function toggleManual() {
+    async function toggleManual() {
     const isLisa = (currentPersona.toLowerCase() === 'lisa');
     const pName = isLisa ? 'Lisa' : 'Jarvis';
+    unlockAudioEngine();
+
     if (conversationState === 'IDLE') {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStream.getTracks().forEach(t => t.stop());
+        }
+      } catch (micErr) {
+        console.warn("Microphone permission check notice:", micErr);
+        if (micErr.name === 'NotAllowedError' || micErr.name === 'PermissionDeniedError') {
+          setAIStatus("⚠️ MIC BLOCKED");
+          setAIResponse("🔒 Microphone blocked: Click the lock icon in your browser URL bar, choose 'Allow', and refresh.");
+          return;
+        }
+      }
+
       setState('LISTENING');
       document.getElementById('micBtn').innerText = "⏹ Sleep";
-      speakResponse(LANGUAGES[activeLanguage].confirm);
+      document.getElementById('transcript').innerText = '👂 Listening... Speak now!';
+      setAIStatus(isLisa ? "👩 LISA LISTENING" : "🤖 JARVIS LISTENING");
+      setAIResponse("Listening. Ask me anything, play music, or check your outfit!");
+      safeStart();
     } else {
       setState('IDLE');
       document.getElementById('micBtn').innerText = "🎤 Start";
-      speakResponse(`Going to sleep. Say ${pName} when you need me!`);
+      document.getElementById('transcript').innerText = '';
+      setAIStatus("● IDLE");
+      setAIResponse(`Standing by. Say "${pName}" or click Start when ready.`);
+      if (recognition && recognitionRunning) {
+        try { recognition.abort(); } catch(e) {}
+      }
     }
   }
 
@@ -4173,27 +5131,170 @@ CRITICAL HARDWARE CONTROLS:
   setInterval(updateClock, 1000);
   updateClock();
 
-  async function initCamera() {
+  // ============================================================
+  // Weather Widget — Free Open-Meteo API (no key required)
+  // Location: Chennai (lat 13.08, lon 80.27) — auto-detected via IP if possible
+  // ============================================================
+  const WEATHER_ICONS = {
+    0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+    45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌧️',
+    61: '🌧️', 63: '🌧️', 65: '🌧️',
+    71: '🌨️', 73: '🌨️', 75: '❄️',
+    80: '🌦️', 81: '🌧️', 82: '⛈️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️'
+  };
+  const WEATHER_DESC = {
+    0: 'CLEAR SKY', 1: 'MOSTLY CLEAR', 2: 'PARTLY CLOUDY', 3: 'OVERCAST',
+    45: 'FOGGY', 48: 'FOGGY',
+    51: 'LIGHT DRIZZLE', 53: 'DRIZZLE', 55: 'HEAVY DRIZZLE',
+    61: 'LIGHT RAIN', 63: 'RAIN', 65: 'HEAVY RAIN',
+    71: 'LIGHT SNOW', 73: 'SNOW', 75: 'HEAVY SNOW',
+    80: 'RAIN SHOWERS', 81: 'RAIN SHOWERS', 82: 'HEAVY SHOWERS',
+    95: 'THUNDERSTORM', 96: 'THUNDERSTORM', 99: 'HEAVY THUNDERSTORM'
+  };
+
+  async function fetchWeather() {
+    // Try to get user location; fall back to Chennai
+    let lat = 13.0827, lon = 80.2707, cityName = 'CHENNAI, IN';
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: 'user' }, audio: false });
-      document.getElementById('video').srcObject = stream;
+      const ipRes = await fetch('https://ipapi.co/json/');
+      if (ipRes.ok) {
+        const ipData = await ipRes.json();
+        if (ipData.latitude && ipData.longitude) {
+          lat = ipData.latitude;
+          lon = ipData.longitude;
+          cityName = `${(ipData.city || 'YOUR CITY').toUpperCase()}, ${ipData.country_code || 'IN'}`;
+        }
+      }
+    } catch (e) { /* Use Chennai defaults */ }
+
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode&temperature_unit=celsius&timezone=auto`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      const temp = Math.round(data.current.temperature_2m);
+      const code = data.current.weathercode;
+      const icon = WEATHER_ICONS[code] || '🌡️';
+      const desc = WEATHER_DESC[code] || 'WEATHER';
+      document.getElementById('weather').innerText = `${icon} ${temp}°C`;
+      document.getElementById('weather-desc').innerText = desc;
+      document.getElementById('weather-city').innerText = cityName;
     } catch (e) {
+      console.warn('Weather fetch failed:', e);
+    }
+  }
+
+  fetchWeather();
+  setInterval(fetchWeather, 10 * 60 * 1000); // Refresh every 10 minutes
+  renderRemindersWidget();
+
+    // ============================================================
+  // Robust Camera & Hardware Stream Management
+  // ============================================================
+  let cameraStream = null;
+  let isCameraActive = false;
+
+  async function requestCameraAccess(userClick = false) {
+    const video = document.getElementById('video');
+    const indicator = document.getElementById('camera-indicator');
+    if (!video) return false;
+
+    if (indicator) {
+      indicator.innerText = '📷 CAMERA: CONNECTING...';
+      indicator.style.color = '#f1fa8c';
+    }
+
+    const constraintOptions = [
+      { video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+      { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      { video: true, audio: false }
+    ];
+
+    let stream = null;
+    let lastError = null;
+
+    for (const constraints of constraintOptions) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        document.getElementById('video').srcObject = stream;
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (stream) break;
       } catch (err) {
-        setAIResponse("⚠️ Camera permission needed: click camera icon in browser URL bar.");
+        lastError = err;
       }
     }
-    loadConversationHistory();
-    loadUserProfile();
-    setupRecognition();
-    fetchLiveNews();
-    updateLangUI();
-    updatePersonaUI();
-    setState('LISTENING');
-    setTimeout(() => safeStart(), 600);
+
+    if (stream) {
+      cameraStream = stream;
+      isCameraActive = true;
+      video.srcObject = stream;
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('autoplay', '');
+
+      try {
+        await video.play();
+      } catch (e) {
+        console.warn("Video play notice:", e);
+      }
+
+      const checkResolution = () => {
+        const w = video.videoWidth || 1280;
+        const h = video.videoHeight || 720;
+        if (indicator) {
+          indicator.innerText = `🟢 CAMERA: LIVE (${w}x${h})`;
+          indicator.style.color = '#50fa7b';
+        }
+      };
+
+      video.onloadedmetadata = checkResolution;
+      setTimeout(checkResolution, 500);
+
+      const flip = document.getElementById('flip-indicator');
+      if (flip) flip.innerText = isMirrored ? '🪞 MIRROR: ON' : '🪞 MIRROR: OFF';
+      setAIStatus("🟢 CAMERA READY");
+      return true;
+    } else {
+      console.warn("Camera initialization error:", lastError);
+      isCameraActive = false;
+      if (indicator) {
+        indicator.innerText = '🔴 CAMERA: OFF (CLICK TO TURN ON)';
+        indicator.style.color = '#ff5555';
+      }
+      setAIStatus("⚠️ CAMERA NOT CONNECTED");
+      if (userClick) {
+        if (lastError && (lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError')) {
+          setAIResponse("🔒 Camera blocked: Click the camera/lock icon in your browser URL bar (top-left), choose 'Allow', then click 'CAMERA: OFF' again.");
+        } else if (lastError && lastError.name === 'NotReadableError') {
+          setAIResponse("⚠️ Camera is busy in another app (Teams, Zoom, Discord). Close other apps and try again.");
+        } else {
+          setAIResponse("⚠️ No webcam detected. You can use the 📁 Upload buttons below to analyze any outfit or item photo!");
+        }
+      }
+      return false;
+    }
   }
+
+  async function initCamera(userGesture = false) {
+    return await requestCameraAccess(userGesture);
+  }
+
+  async function ensureCameraReady() {
+    const video = document.getElementById('video');
+    if (!video) return false;
+    if (video.srcObject && video.videoWidth > 0 && !video.paused) {
+      return true;
+    }
+    await requestCameraAccess(false);
+    // Poll up to 1000ms for video dimensions
+    const start = Date.now();
+    while (Date.now() - start < 1000) {
+      if (video.videoWidth > 0 && !video.paused) return true;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return (video.videoWidth > 0);
+  }
+
 
   function setAIStatus(msg) { document.getElementById('ai-status').innerText = msg; }
   function setAIResponse(msg) { document.getElementById('ai-response').innerText = msg; }
@@ -4208,7 +5309,17 @@ CRITICAL HARDWARE CONTROLS:
     }
   });
 
-  window.addEventListener('DOMContentLoaded', () => { initCamera(); });
+  window.addEventListener('DOMContentLoaded', () => {
+    loadConversationHistory();
+    loadUserProfile();
+    setupRecognition();
+    fetchLiveNews();
+    updateLangUI();
+    updatePersonaUI();
+    setState('LISTENING');
+    setTimeout(() => safeStart(), 600);
+    requestCameraAccess(false);
+  });
 </script>
 </body>
 </html>

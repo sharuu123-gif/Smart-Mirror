@@ -2,3 +2,12 @@ flask>=2.3.0
 flask-cors>=4.0.0
 requests>=2.31.0
 pillow>=10.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+cryptography>=41.0.0
+python-dotenv>=1.0.0
+gtts>=2.5.0
+# Optional for local offline vision models:
+# ultralytics>=8.0.0
+# torch>=2.0.0
+# torchvision>=0.15.0

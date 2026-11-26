@@ -1,5 +1,30 @@
+# Environment secrets
 .env
+.env.*
+!.env.example
+
+# Dependencies and Python runtime
+node_modules/
+venv/
+.venv/
 __pycache__/
 *.pyc
+
+# Build and runtime output
+build/
+dist/
+logs/
+*.log
+
+# Generated or private test images
+static/generated/
+static/test_*.jpg
 test_*.jpg
+
+# Temporary scripts
+temp_script_*.js
+n8n_workflow_full.json
+publish_workflow.py
+update_app_vision.py
+
 public/
